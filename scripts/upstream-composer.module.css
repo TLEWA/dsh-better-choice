@@ -1,0 +1,469 @@
+/* Enhanced question composer styles: a verbatim copy of the official
+   QuestionComposer.module.css (same tokens, same geometry) plus the
+   `.supplementRow` seat the note input takes under the selected option. */
+
+/* The takeover seats where the input card sits, centered on the InputBar
+   axis at the shared content width (input card - 32): sides = clearance +
+   16px so the relation also holds on narrow viewports. */
+.frame {
+  display: flex;
+  justify-content: center;
+  padding: 6px calc(var(--dsh-composer-side-clearance) + 16px) 10px;
+}
+
+/* Figma Input 973:36348 body over the 1019:36938 header: no banner strip —
+   the card keeps zero padding and sections carry their own insets. */
+.card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--dsh-chat-content-width);
+  /* Composer seat sits in a fixed-height conversation column (overflow
+     hidden): cap the card against the viewport and scroll the option list
+     so header and footer actions stay reachable on long batches. */
+  max-height: min(60vh, 520px);
+  padding: 0 0 10px;
+  border: 0;
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l2-darkmode-thin);
+  border-radius: var(--dsw-radius-xl);
+  background: var(--dsw-specific-input-major);
+  box-shadow: var(--dsw-elevation-panel);
+  color: var(--dsw-alias-label-primary);
+  overflow: hidden;
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.card,
+.card * {
+  box-sizing: border-box;
+}
+
+/* Collapsed to the header strip: drop the height cap and the inner scroll
+   seat so the card hugs the title row. */
+.cardMinimized {
+  max-height: none;
+}
+
+/* The header strip is the whole card when collapsed. */
+.cardMinimized .header {
+  padding-bottom: 14px;
+}
+
+/* Header button group: minimize sits next to the close action. */
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.waitButton {
+  white-space: nowrap;
+}
+
+.waitStatus {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 24px;
+  white-space: nowrap;
+}
+
+/* Figma 1019:36938 header: heading block left, close right; the pager sits
+   in the footer to balance the card. */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+  padding: 20px 16px 0 24px;
+}
+
+.headingBlock {
+  min-width: 0;
+}
+
+.eyebrow {
+  margin-bottom: 5px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 500;
+}
+
+.detail {
+  margin: 0 2px 8px;
+}
+
+.footerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.progress {
+  padding: 0 4px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 14px;
+  line-height: 24px;
+  font-weight: 500;
+  white-space: nowrap;
+  word-spacing: -2px;
+}
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  corner-shape: round;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+
+.iconButton:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.iconButton:disabled {
+  color: var(--dsw-alias-label-dimmed);
+  cursor: default;
+}
+
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 8px 0 0;
+  padding: 4px 12px;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  flex-shrink: 0;
+  padding: 8px 12px 8px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--dsw-radius-md);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.option:hover:not(:disabled),
+.optionSelected {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.optionSelected {
+  border-color: var(--dsw-alias-border-l2);
+}
+
+.option:disabled {
+  cursor: default;
+}
+
+/* Leading indicator (20×20): single-select shows the option number,
+   multi-select swaps in a checkbox. */
+.number {
+  display: grid;
+  place-items: center;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  border-radius: var(--dsw-radius-xs);
+  background: var(--dsw-alias-bg-overlay);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+/* Multi-select box (figma 1055:41594): a radius-4 box centered in the
+   20px indicator seat; the check icon stacks over it in the same grid cell. */
+.checkbox {
+  display: grid;
+  place-items: center;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+}
+
+.checkbox::before {
+  content: '';
+  grid-area: 1 / 1;
+  width: 14px;
+  height: 14px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: var(--dsw-radius-xs);
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.checkbox > svg {
+  grid-area: 1 / 1;
+}
+
+/* Checked: label-primary fill with a primary-foreground check. */
+.checkboxChecked {
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+.checkboxChecked::before {
+  border-color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-label-primary);
+}
+
+.optionCopy {
+  min-width: 0;
+  flex: 1;
+}
+
+.optionLine {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+}
+
+.optionLabel {
+  font-size: 14px;
+  line-height: 24px;
+  font-weight: 500;
+}
+
+.badge {
+  padding: 0 4px;
+  border-radius: var(--dsw-radius-xs);
+  background: var(--dsw-specific-sidebar-nav-item-active-accent);
+  color: var(--dsw-alias-button-info-fill);
+  font-size: 11px;
+  line-height: 18px;
+  font-weight: 600;
+}
+
+.description {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 14px;
+  line-height: 24px;
+  font-weight: 400;
+}
+
+/* Read-only note standing in for a question the user skipped. */
+.reviewNote {
+  margin: 0;
+  padding: 8px 12px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 14px;
+  line-height: 24px;
+}
+
+/* Custom answer row: an option-shaped row whose copy is an inline text
+   input; focus or a typed draft lifts it to the selected look. */
+.customRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  flex-shrink: 0;
+  padding: 8px 12px 8px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--dsw-radius-md);
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.customRow:hover,
+.customRow:focus-within,
+.customRowActive {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.customRow:focus-within,
+.customRowActive {
+  border-color: var(--dsw-alias-border-l2);
+}
+
+/* Supplement note row (dsh-question-note): an input rendered directly UNDER
+   the selected option and indented one indicator-seat (20px) plus one gap
+   (8px) to the right, so its left edge aligns with the option LABEL instead
+   of the option's number badge — visually a subordinate note of that option,
+   never a peer option row. Width stays auto: inside the column-flex .options
+   container the row stretches to the container minus the indent margin. */
+.supplementRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 36px;
+  flex-shrink: 0;
+  margin: 2px 0 4px 28px;
+  padding: 6px 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-alias-bg-module-platform);
+  transition: border-color 120ms ease;
+}
+
+.supplementRow:focus-within {
+  border-color: var(--dsw-alias-state-business-primary);
+}
+
+/* Auto-growing free-text answer (see AnswerField): mirror and textarea share
+   one grid cell, the mirror sizes it, and the textarea stretches to it. The
+   two layers MUST keep identical type, padding and wrapping. */
+.field {
+  display: grid;
+  min-width: 0;
+  --dsh-answer-field-padding: 0;
+}
+
+.field > * {
+  grid-area: 1 / 1;
+  min-width: 0;
+  padding: var(--dsh-answer-field-padding);
+  font: inherit;
+  font-size: 14px;
+  line-height: 24px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* The height ruler, never painted. Growth stops at 6 lines. */
+.fieldMirror {
+  box-sizing: content-box;
+  max-height: 144px;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+.fieldInput {
+  resize: none;
+  overflow-y: auto;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  caret-color: var(--dsw-alias-state-business-primary);
+}
+
+.fieldInput::placeholder {
+  color: var(--dsw-alias-label-caption);
+}
+
+/* Inline variant: the row's copy column, borrowing the row's chrome. */
+.customInline {
+  flex: 1;
+}
+
+/* Optionless question: the free-form answer is the whole body, so it carries
+   its own frame. */
+.customBlock {
+  min-height: 64px;
+  flex-shrink: 0;
+  margin: 0 12px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-bg-module-platform);
+  --dsh-answer-field-padding: 8px 12px;
+}
+
+.customBlock:focus-within {
+  border-color: var(--dsw-alias-state-business-primary);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  margin-top: 12px;
+  padding: 0 10px 0 18px;
+}
+
+.feedback {
+  flex: 1;
+  min-height: 16px;
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: right;
+}
+
+@media (max-width: 720px) {
+  .card {
+    border-radius: var(--dsw-radius-xl);
+  }
+
+  .header {
+    padding: 10px 12px 0 18px;
+  }
+
+  .options {
+    padding: 4px 8px;
+  }
+
+  .title {
+    font-size: 15px;
+    line-height: 21px;
+  }
+
+  .option,
+  .customRow,
+  .supplementRow {
+    padding: 8px 6px;
+  }
+
+  .footer {
+    align-items: flex-end;
+    padding: 0 10px;
+  }
+
+  .footerActions {
+    flex-shrink: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .option,
+  .customRow,
+  .supplementRow {
+    transition: none;
+  }
+}

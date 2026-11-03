@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Verify tag matches package version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          test "v${VERSION}" = "${GITHUB_REF_NAME}"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Syntax check artifacts
+        run: npm run check
+
+      - name: Run tests
+        run: npm test
+
+      - name: Pack release tarball
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARBALL="$(npm pack --silent | tail -n 1)"
+          echo "TARBALL=${TARBALL}" >> "$GITHUB_ENV"
+          sha256sum "$TARBALL" > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "${GITHUB_REF_NAME}" \
+            "${TARBALL}" \
+            SHA256SUMS.txt \
+            --title "dsh-better-choice ${VERSION}" \
+            --generate-notes

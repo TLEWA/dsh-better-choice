@@ -1,0 +1,9 @@
+# dsh-better-choice bundle patch
+#
+#   dsh plugin --profile desktop add <path-to-this-package>
+#
+# The profile boot merges this patch (one insert of the host row). The browser
+# half is discovered from the package's `dsh.client` manifest.
+- insert:
+    - id: better-choice
+      name: 'dsh-better-choice'
