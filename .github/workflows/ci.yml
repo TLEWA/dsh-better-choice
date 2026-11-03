@@ -43,12 +43,16 @@ jobs:
           TARBALL="$(npm pack --silent | tail -n 1)"
           test -f "$TARBALL"
           echo "Packed $TARBALL"
-          tar -tzf "$TARBALL"
-          tar -tzf "$TARBALL" | grep -qx 'package/lib/index.js'
-          tar -tzf "$TARBALL" | grep -qx 'package/lib/client.js'
-          tar -tzf "$TARBALL" | grep -qx 'package/cordis.patch.yml'
-          tar -tzf "$TARBALL" | grep -qx 'package/README.md'
-          tar -tzf "$TARBALL" | grep -qx 'package/LICENSE'
+          tar -tzf "$TARBALL" > package-files.txt
+          cat package-files.txt
+          for path in \
+            package/lib/index.js \
+            package/lib/client.js \
+            package/cordis.patch.yml \
+            package/README.md \
+            package/LICENSE; do
+            grep -qx "$path" package-files.txt
+          done
 
       - name: Upload package
         uses: actions/upload-artifact@v4
