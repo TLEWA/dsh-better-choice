@@ -1,6 +1,6 @@
 {
   "name": "dsh-better-choice",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "DSH ask_user_question enhancement: right-click an option to add a note, and ask the model a side question before choosing — with the session's own context and cache-friendly prefix.",
   "keywords": [
@@ -34,6 +34,7 @@
     "README.md",
     "README.en.md",
     "CHANGELOG.md",
+    "CHANGELOG.en.md",
     "LICENSE",
     "NOTICE.md",
     "NOTICE.en.md",
@@ -59,6 +60,7 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",
+    "@deepseek-ai/dsh-api-remotes": "^0.2.0-rc.1",
     "@deepseek-ai/dsh-client-locale": "^0.2.0-rc.1",
     "@deepseek-ai/dsh-client-store": "^0.2.0-rc.1",
     "@deepseek-ai/dsh-client-ui-conversation": "^0.2.0-rc.1",
@@ -67,7 +69,18 @@
     "react": "^18.2.0"
   },
   "devDependencies": {
-    "esbuild": "0.28.2"
+    "@deepseek-ai/cordis": "^4.1.0",
+    "@deepseek-ai/dsh-api-remotes": "^0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-locale": "^0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-store": "^0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-conversation": "^0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-primitives": "^0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-slots": "^0.2.2-rc.1",
+    "@types/node": "^22.20.5",
+    "@types/react": "^18.3.31",
+    "esbuild": "0.28.2",
+    "react": "^18.3.1",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=20"
@@ -75,9 +88,10 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "check": "node --check lib/index.js && node --check lib/client.js",
+    "typecheck": "tsc -p tsconfig.json",
     "test": "node --test test/package.test.mjs",
-    "prepack": "npm run build && npm run check && npm test",
-    "prepublishOnly": "npm run build && npm run check && npm test"
+    "prepack": "npm run build && npm run check && npm run typecheck && npm test",
+    "prepublishOnly": "npm run build && npm run check && npm run typecheck && npm test"
   },
   "publishConfig": {
     "access": "public",

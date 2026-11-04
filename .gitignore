@@ -11,3 +11,5 @@ dist/
 coverage/
 .env
 .env.*
+
+.npm-cache/

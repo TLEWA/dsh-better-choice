@@ -28,7 +28,8 @@ DeepSeek 所有，本项目只通过公开接口与运行时行为对接，不�
 - 许可证：Apache-2.0
 - 仓库：https://github.com/MichengAI/dsh-btw
 - 关系：旁问的产品交互（卡片内独立提问、只读回答、不打断主任务）受其启发。
-  本项目的旁问实现直接调用宿主 `ctx.llm.stream`，未复制其源代码。
+  本项目通过宿主公开的 `ctx.subagents.startActivation` 与 fork provider 自行实现，
+  未复制其源代码。
 
 ## AI 辅助说明
 

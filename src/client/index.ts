@@ -1,13 +1,15 @@
 /**
  * Browser half of dsh-better-choice. It registers an enhanced
- * `ask_user_question` composer into the conversation-declared composer chain
- * at a lower priority than the official entry, so its selector runs first and
- * claims generic pending-question carriers. Plan-review cards and every other
- * pending interaction fall through to their own registered entries.
+ * `ask_user_question` composer into the conversation-declared composer chain.
+ * Chain selectors run in ascending priority order, so this entry's -10 runs
+ * before the official entry (default 0) and claims generic pending-question
+ * carriers; plan-review cards and every other pending interaction fall through
+ * to their own registered entries.
  *
  * The side-question box talks to this plugin's own host command `bc-ask`,
- * which makes one direct model call instead of starting a child agent. The
- * answer is rendered inside the question card and never becomes an answer.
+ * which starts a read-only fork child and renders its answer inside the
+ * question card. The answer never becomes part of the submitted answer and
+ * never writes back into the parent conversation.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { createQuestionNoteDraftStore } from './draft-store.ts'
@@ -33,18 +35,23 @@ const NS = 'better-choice'
 /** Chain election order: the official composer sits at the default 0. */
 const CHAIN_PRIORITY = -10
 
-/** The subset of the remote commands service used here. */
-interface RemoteCommands {
+/** The `commands` namespace mounted on the client remote root. */
+interface CommandsRemote {
   execute: (
-    sessionId: string,
+    agentId: string,
     line: string,
-    args: readonly string[],
+    submittedAttachments: readonly unknown[],
     signal?: AbortSignal,
   ) => Promise<{
     ok: boolean
     error?: { code?: string; message?: string }
     value?: { result?: { kind?: string; text?: string } }
   }>
+}
+
+/** The subset of the client remote root this bridge uses. */
+interface SideAskRemote {
+  commands: CommandsRemote
 }
 
 /** Put the generated component CSS into the document exactly once per load. */
@@ -58,11 +65,13 @@ function installStyles(): () => void {
   return () => style.remove()
 }
 
-/** Build the `bc-ask` bridge over the remote commands service. */
-function createSideAskService(remote: RemoteCommands): SideAskService {
+/** Build the `bc-ask` bridge over the remote commands namespace. */
+function createSideAskService(remote: SideAskRemote): SideAskService {
   return {
     async ask(sessionId: string, input: SideAskInput, signal?: AbortSignal) {
       const line = `/bc-ask ${JSON.stringify(input)}`
+      // `execute` is a method of the mounted `commands` service: (agentId, line,
+      // submittedAttachments, signal) — the agent id is the conversation target.
       const response = await remote.commands.execute(sessionId, line, [], signal)
       if (!response.ok) {
         throw new Error(response.error?.message ?? 'side question failed')
@@ -85,7 +94,7 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(installStyles, 'dsh-better-choice: styles')
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-better-choice: dictionaries')
 
-  const remote = ctx.get('remote') as RemoteCommands | undefined
+  const remote = ctx.get('remote') as SideAskRemote | undefined
   if (remote !== undefined && remote !== null) {
     const service = createSideAskService(remote)
     setSideAskService(service)

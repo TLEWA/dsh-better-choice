@@ -28,9 +28,10 @@
 | 每个选项独立记忆 | 单选、多选都按选项分别保存补充内容，切换选项不会串稿 |
 | 提交不改变协议 | `selected` 仍是原始选项文字；补充说明合并进 `custom`，无补充时与官方请求完全一致 |
 | 未选也可备注 | 多选时给未勾选的选项写了备注，提交文本会标注 `(未选)`，模型能分清语气 |
-| 旁问当前会话 | 复用当前会话的模型、历史、工具声明与工具历史，回答「这个选项到底什么意思」这类问题 |
-| 旁问不打断作答 | 独立线程、可连续追问；不写入会话日志，不改变主对话的缓存前缀 |
-| 旁问只读 | 旁问不会调用工具、不会继续原任务、不会替用户选择；输出上限 700 tokens |
+| 旁问当前会话 | 以 fork 子代理复用当前会话已完成的上下文、模型与工具声明，回答「这个选项到底什么意思」这类问题 |
+| 旁问不打断作答 | 每题独立线程、可连续追问；聚焦旁问框时卡片倒计时暂停，失焦恢复；点「提问」后卡片进入等待，不再超时 |
+| 旁问可取消 | 回答中显示「取消旁问」，取消后线程里留下已取消提示，可以换个问法再问 |
+| 旁问只读 | 执行期拦截一切工具调用，不继续原任务、不替用户选择；输出上限 32K tokens（不超过父会话上限） |
 | 官方交互保留 | 左键选择、自由输入行、跳过、翻页、倒计时、超时后续答、已结算回看均不受影响 |
 
 ### 右键补充
@@ -61,12 +62,19 @@
 
 ### 旁问
 
-问题卡片底部有「先问一句」输入区。Enter 发送，Shift+Enter 换行；回答以流式显示，
+问题卡片底部有「先问一句」输入区。Enter 发送，Shift+Enter 换行；回答完成后写入卡片，
 可以继续追问。旁问使用当前会话的模型与上下文，但：
 
-- 不启动子代理，不会因为父会话正卡在 `ask_user_question` 而死锁；
-- 不把问答写进 session，主对话的上下文与 prompt 缓存前缀保持不变；
-- 不产生工具调用，不修改文件，也不替你提交答案。
+- 会启动一个 fork 子代理；它通过 `delivery: 'caller'` 挂在当前命令调用上，不排队等父回合，
+  所以父会话正卡在 `ask_user_question` 时也能回答；
+- 不把问答写回父会话的消息流；子代理有独立的子会话日志，父会话只记录
+  `command/run`、`subagent/catalog` / `command/done`（不记录问题正文）；
+- 执行期 guard 拒绝一切工具调用，不改文件，也不替你提交答案。
+
+倒计时开着也来得及想：把光标放进旁问框，卡片会显示「已暂停」（倒计时停住），失焦后
+自动恢复；点「提问」后卡片进入「会一直等你回答」，不会再因为等回答而超时。旁问线程按题
+分开保存，切题再回来仍能看到原来的问答；回答中可点「取消旁问」中止，每个线程最多保留
+20 轮，避免长会话无限增长。
 
 适合问：「这两个选项在生产环境下的差别是什么？」「选 B 的话需要改哪些文件？」
 「刚才那个结论的依据在哪？」——问完再点选项。
@@ -89,13 +97,13 @@
 固定版本：
 
 ```text
-dsh-better-choice@1.0.0
+dsh-better-choice@1.0.1
 ```
 
 命令行等价写法：
 
 ```powershell
-dsh plugin --profile desktop add dsh-better-choice@1.0.0
+dsh plugin --profile desktop add dsh-better-choice@1.0.1
 ```
 
 ### 从 GitHub 安装
@@ -109,19 +117,19 @@ https://github.com/TLEWA/dsh-better-choice
 固定到标签：
 
 ```text
-https://github.com/TLEWA/dsh-better-choice#v1.0.0
+https://github.com/TLEWA/dsh-better-choice#v1.0.1
 ```
 
 或直接安装 Release 附件：
 
 ```text
-https://github.com/TLEWA/dsh-better-choice/releases/download/v1.0.0/dsh-better-choice-1.0.0.tgz
+https://github.com/TLEWA/dsh-better-choice/releases/download/v1.0.1/dsh-better-choice-1.0.1.tgz
 ```
 
 命令行等价写法：
 
 ```powershell
-dsh plugin --profile desktop add github:TLEWA/dsh-better-choice#v1.0.0
+dsh plugin --profile desktop add github:TLEWA/dsh-better-choice#v1.0.1
 ```
 
 ### 从源码安装
@@ -160,26 +168,29 @@ dsh plugin --profile desktop add .
 
 ### 宿主：一个只读的旁问命令
 
-旁问通过本插件自己的命令 `bc-ask` 完成，客户端把问题、当前卡片和已写备注序列化后
-交给宿主。宿主：
+旁问通过本插件自己的命令 `bc-ask` 完成，客户端把问题、全部问题卡片、已写备注和本线程
+之前的旁问序列化后交给宿主。宿主：
 
-- 用 `agent.session.deriveMessages()` 取当前会话已投影的消息，去掉末尾尚未配对的
-  assistant tool-call / tool 消息（待决问题会让历史停在这里），超长时从最旧处裁剪；
-- 复用会话的 provider / model / reasoningEffort，以及请求头里的工具声明和
-  `toolHistory()`，尽量让前缀与主请求保持一致；
-- 在末尾追加一条临时 user 消息，调用 `ctx.llm.stream()`，只读取文本；
-- 不写 session、不创建子代理、不执行工具。
+- 用 `ctx.subagents.startActivation({ provider: 'fork', delivery: 'caller' })` 启动一个
+  fork 子代理；fork provider 会把父会话最后一个 `turn/end` 之前的已完成回合作为 seed，
+  当前尚未完成的 tool-call 回合不会进入 seed；
+- 只追加一条尾部 user 消息（旁问模式 + 问题卡片 + 之前的旁问 + 本次问题），不改 system、
+  不改工具声明、不重写历史，因此前缀与父会话已完成回合保持一致；
+- 子代理继承父会话的 provider / model / reasoningEffort，`maxTokens` 取
+  `min(32000, parent.maxTokens)`；父调用的 signal 与 30 分钟 watchdog 一起透传；
+- 子代理执行期挂 `tools.guard`，任何工具调用都会被拒绝；回答只取文本，并清理模型误发的
+  `<tool_call>` 伪影；
+- 子代理不把问答写回父 session；父会话只落 `command/run`、`subagent/catalog` 与
+  `command/done`，且 `recordInput: false` 不记录问题正文。
 
-这也是为什么不用 `/btw` 或 fork 子会话：父回合正被待决问题阻塞，子代理可能永远等不到
-自己的回合；直接调用 LLM 流则没有这个依赖。
-
-迁移与裁剪都以「不破坏主对话前缀」为优先：正常长度的会话，旁问请求的前缀就是主请求
-的前缀，provider 可以命中已有缓存。
+fork 子代理复用父会话已完成回合的前缀，provider 可以命中已有 prompt cache。实测主请求与
+紧随其后的 fork 子请求都会报告非零 `cacheReadTokens`，并随父会话已完成回合增长（本机
+DeepSeek 路由为自动前缀缓存）。
 
 ## 目录
 
 ```text
-src/index.ts                 宿主入口：bc-ask 命令、历史裁剪、旁问提示词
+src/index.ts                 宿主入口：bc-ask 命令、fork 子代理、旁问提示词
 src/client/index.ts          客户端入口：样式、词典、slot 注册、旁问桥
 src/client/composer.tsx      增强问题卡：右键补充、旁问线程、提交组装
 src/client/carrier.ts        结构化识别通用 PendingQuestion
@@ -214,14 +225,17 @@ npm pack          # 生成可安装的 .tgz
 声明为 `^0.2.0-rc.1`。DSH 升级若改动问题卡内部结构：
 
 - 识别失败时增强卡片不接管，官方问题卡仍可用；
-- 旁问依赖宿主命令与 `ctx.llm.stream`，接口变化时旁问会报错，但不影响正常作答。
+- 旁问依赖宿主命令、`ctx.subagents.startActivation` 与 fork provider；接口变化时旁问会报错，
+  但不影响正常作答。
 
 ## 已知限制
 
 - 只接管通用选择题；计划审查、审批等卡片保持官方实现。
 - 旁问固定在当前会话的模型上，不提供单独选择模型或推理强度的入口。
 - 旁问是只读的：需要读文件、跑命令才能回答的问题，应直接在对话里问。
-- 极端长的会话会从最旧处裁剪旁问上下文；旁问看到的是最近的一部分。
+- fork seed 只包含父会话最后一个已完成回合；当前未完成的回合（例如正在等待回答的这一轮）
+  不会进入 seed，旁问需要从问题卡片和之前的旁问里了解它。
+- 旁问回答目前是完成后整段出现，不是逐字流式显示；超长回答受 32K 输出上限约束。
 - 没有右键输入的设备无法使用补充框，但左键作答完全不受影响。
 
 ## 许可与来源
@@ -234,3 +248,5 @@ npm pack          # 生成可安装的 .tgz
 AI 参与范围与验证边界见 [AI_USAGE.md](AI_USAGE.md)。
 
 DSH 本身及其内置包的版权归 DeepSeek 所有，不因本项目的 MIT 许可而改变。
+
+版本变更见 [更新日志](CHANGELOG.md)（[English](CHANGELOG.en.md)）。

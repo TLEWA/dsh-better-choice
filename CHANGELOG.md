@@ -1,30 +1,60 @@
-# Changelog
+# 更新日志
 
-All notable changes are documented here. This project follows
-[Semantic Versioning](https://semver.org/).
+记录本项目的所有重要变更。版本号遵循
+[语义化版本](https://semver.org/lang/zh-CN/)。
+
+[简体中文](CHANGELOG.md) · [English](CHANGELOG.en.md)
+
+## [1.0.1] - 2026-11-04
+
+### 修复
+
+- 旁问框不会再让 timed 卡片在你阅读或撰写旁问时继续倒计时：聚焦暂停、失焦恢复，
+  发送旁问后卡片进入「会一直等你回答」。此前等待回答期间可能超时，导致卡片无法提交、
+  只能关闭。
+- 旁问状态改为按题隔离：忙碌、错误、取消不再串题；新增「取消旁问」按钮可中止进行中的
+  回答，每个线程最多保留 20 轮。
+- 宿主对旁问线程连续编号（1、2、3，而不是 1、3、5）；活动题按原始 wire 位置标记；
+  用户跳过某题时会写进提示词。
+- `startActivation` 在 fork 子代理已建立后抛错时，子代理仍受只读 guard 约束，不再漏出。
+- 单选答案带自定义文本时提交空的 `selected`，与官方组件一致。
+- 只有真正能打开补充框时才拦截选项右键菜单；选项的无障碍名称包含描述、推荐与备注状态；
+  空问题批次有兜底，不再可能崩溃。
+- 客户端 `RemoteCommands` 类型改为真实的 `remote.commands.execute` 形状；
+  `@deepseek-ai/dsh-api-remotes` 补进 peerDependencies。
+
+### 变更
+
+- 旁问改为 fork 子代理（`ctx.subagents.startActivation` + `delivery: 'caller'`），
+  不再直接调用 `ctx.llm.stream`。fork seed 截止到父会话最后一个已完成 `turn/end`，
+  复用父会话已完成回合的前缀与提示缓存，且不写入父会话。
+- 每次旁问都在执行期受 guard 约束：子代理不能调用工具；父调用 `signal` 加 30 分钟
+  watchdog 可取消；输出上限 `min(32000, parent.maxTokens)`。
+- 客户端会把全部问题、当前题下标、备注以及本线程之前的旁问一起交给宿主；宿主显式渲染，
+  并提示模型「刚才 / 上一条」优先指旁问线程。
+- `bc-ask` 使用 `recordInput: false` 注册，父会话的 `command/run` 不再持久化问题正文。
+- 新增 `tsconfig.json` 与 `npm run typecheck`（`prepack`/`prepublishOnly` 也会执行）；
+  测试增至 12 项。
+- 文档补充 fork 架构、只读 guard、倒计时暂停/进入等待的行为与缓存说明。
 
 ## [1.0.0] - 2026-11-04
 
-First public release.
+首次公开发布。
 
-### Added
+### 新增
 
-- Right-click an option to open a per-option supplement note; notes are kept per
-  option for single- and multi-select and merged into the answer's `custom` text.
-- Bottom-of-card side ask: ask the current model about the pending question and see a
-  streamed, read-only answer without leaving the card.
-- Side ask reuses the session's derived history, model route, tool declarations, and
-  tool history, while never writing to the session, so the main prompt prefix and its
-  cache stay intact.
-- Chinese and English UI copy, following the DSH locale.
+- 右键选项展开补充说明输入框；单选、多选都按选项保存，提交时合并进答案的 `custom`。
+- 卡片底部旁问框：不离开卡片就能向当前模型提问，得到只读回答。
+- 旁问复用会话的派生历史、模型路由、工具声明与工具历史，但不写入会话，主提示前缀与
+  缓存保持不变。
+- 跟随 DSH locale 的中英文案。
 
-### Compatibility
+### 兼容
 
-- DSH client `0.2.0-rc` family (`^0.2.0-rc.1`).
-- Node.js 20 or newer.
+- DSH 客户端 `0.2.0-rc` 族（`^0.2.0-rc.1`）。
+- Node.js 20 或更高。
 
-### Notes
+### 说明
 
-- Generic choice cards only. Plan-review, approval, and other card types remain with
-  the official composer.
-- No telemetry, no remote endpoints, and no tool execution from the side ask.
+- 只接管通用选择题；计划审查、审批等卡片仍由官方组件处理。
+- 无遥测、无远程端点；旁问不执行任何工具。

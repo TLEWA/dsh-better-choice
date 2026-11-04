@@ -5,7 +5,7 @@
  * drafts. The Slot registry owns store instances; this module exports only
  * the factory so a plugin reload cannot reuse a module-global handle.
  */
-import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
+import { defineStore, type BakedActions, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
 
 /** One in-progress answer, including an explicit skip. */
 export interface QuestionNoteDraftAnswer {
@@ -43,6 +43,12 @@ export type QuestionNoteDraftActions = {
 
 /** The store handle shape the Slot registry carries to the component. */
 export type QuestionNoteStoreHandle = EngineStoreHandle<QuestionNoteDraftState, QuestionNoteDraftActions>
+
+/**
+ * Mutations as the component receives them: the Slot registry bakes the draft
+ * argument in, so components call `actions.replace(key, progress)`.
+ */
+export type QuestionNoteDraftBakedActions = BakedActions<QuestionNoteDraftState, QuestionNoteDraftActions>
 
 /**
  * Declare the enhanced question composer's Session store.

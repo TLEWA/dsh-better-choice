@@ -33,8 +33,9 @@ through public interfaces and runtime behavior only and claims no copyright in t
 - Repository: https://github.com/MichengAI/dsh-btw
 - Relationship: the side-ask product interaction (a separate in-card question,
   read-only answers, no interruption of the main task) was inspired by it. This
-  project's side ask calls the host's `ctx.llm.stream` directly and does not copy its
-  source code.
+  project's side ask is implemented with the host's public
+  `ctx.subagents.startActivation` and the fork provider; it does not copy Btw's source
+  code.
 
 ## AI assistance
 

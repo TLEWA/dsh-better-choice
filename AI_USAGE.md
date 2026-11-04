@@ -24,7 +24,7 @@
 | 部分 | AI 参与程度 | 说明 |
 | --- | --- | --- |
 | `src/client/*` | 高 | 问题卡增强、旁问线程、载体识别与样式生成 |
-| `src/index.ts` | 高 | `bc-ask` 命令、历史裁剪、旁问提示词 |
+| `src/index.ts` | 高 | `bc-ask` 命令、fork 子代理激活、旁问提示词 |
 | `scripts/*` | 高 | esbuild 构建与 CSS 前缀生成 |
 | `test/*.test.mjs` | 高 | 包清单、产物与宿主命令测试 |
 | `README*.md` / `NOTICE*.md` / 本文 | 高 | 由 AI 起草并随代码更新 |
@@ -38,21 +38,26 @@
 已验证：
 
 - `npm run build`、`npm run check` 通过；
-- 6 项 `node:test` 通过：包元数据与 `files`、`dsh` 清单、客户端 ModuleLoader 信封、
-  宿主插件导出、`bc-ask` 流式回答且不修改会话历史、非法/空请求拒绝；
+- 8 项 `node:test` 通过：包元数据与 `files`、`dsh` 清单、客户端 ModuleLoader 信封、
+  宿主插件导出、`bc-ask` 启动 fork 子代理、执行期 guard 拒绝子代理工具、多题/线程
+  提示词、stopReason 分支与非法/空请求拒绝；
 - 在 Windows 上的 DSH 桌面端 Web GUI（`127.0.0.1:9260`）中打开一个真实的待决问题，
   用 CDP `Input.dispatchMouseEvent` 发送右键 `mousePressed` / `mouseReleased`：
   - 右键后选项 A 被选中，其下方出现补充输入框；
   - 输入备注并提交后，模型回复中显示「选项A / 补充备注：测试备注-仅验证」，
     证明备注被合并进 `custom` 并送达模型；
-- 同一会话中旁问框存在且可向宿主 `bc-ask` 发起请求，回答以流式文本返回。
+- 在独立 `bc-test` profile（`127.0.0.1:7166`）中真机验证旁问：卡片内旁问框可发起
+  `bc-ask`，宿主生成独立 fork 子会话；子代理能复述父会话首条指令（seed 生效）。
+  首轮主请求与紧随的 fork 子请求 `cacheReadTokens` 均为 8448；父会话完成一轮后，
+  子请求增至 9344（前缀缓存命中）；父会话 `command/run` 不含 args
+  （`recordInput: false` 生效）。
 
 未完全验证：
 
 - 所有 DSH 版本、主题、缩放比例与多显示器组合；
 - macOS / Linux 客户端；
 - 多选备注的 `(未选)` 标记、连续多题、超时后续答等所有分支的逐项人工验证；
-- 超长会话触发 120K 字符裁剪时的边界行为；
+- 超长会话接近模型上下文窗口时的边界行为；
 - 与其他第三方 composer 插件同时接管同一槽位时的组合行为。
 
 ## 5. 代码来源与引用
@@ -60,7 +65,8 @@
 - 问题卡组件结构与样式改编自 [`dsh-question-note`](https://github.com/buaaflyaway/dsh-question-note)
   （MIT，NedFlanders），复用范围与许可证全文见 [NOTICE.md](NOTICE.md)。
 - 旁问交互受 [`dsh-btw`](https://github.com/MichengAI/dsh-btw)（Apache-2.0）启发；
-  本项目直接调用宿主 `ctx.llm.stream`，未复制其源代码。
+  本项目通过宿主公开的 `ctx.subagents.startActivation` 与 fork provider 自行实现，
+  未复制其源代码。
 - 对接 DSH 内置包时只读取其公开接口、类型与运行时行为，**未复制内置包源代码**。
 - 仓库历史（Git commits）记录了每次变更。
 
@@ -69,7 +75,9 @@
 - 插件在本地运行，**不包含遥测、统计上报或第三方远程请求**。
 - 旁问会把「当前会话已有上下文 + 你输入的问题 + 当前问题卡片」发送给**当前会话
   配置的模型提供商**；这与正常对话走同一条模型通道，不额外发往其他服务。
-- 插件不写会话日志；旁问请求与回答只存在于当前页面内存，刷新或关闭卡片后消失。
+- 插件不把旁问问答写回父会话；fork 子代理有独立的子会话日志（与普通子代理相同）。
+  旁问问题正文不会写入父会话的 `command/run`（`recordInput: false`），刷新或关闭卡片后
+  当前页面内的旁问线程消失。
 - 补充备注只随答案进入正常的 `ask_user_question` 回答，不单独上传。
 
 ## 7. 使用建议

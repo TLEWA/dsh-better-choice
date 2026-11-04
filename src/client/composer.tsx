@@ -10,9 +10,11 @@ import {
 import type {
   QuestionNoteAnswer, QuestionNoteCarrier, QuestionNoteItem,
 } from './carrier.ts'
-import type { QuestionNoteDraftAnswer, QuestionNoteDraftState, QuestionNoteDraftActions } from './draft-store.ts'
+import type {
+  QuestionNoteDraftAnswer, QuestionNoteDraftBakedActions, QuestionNoteDraftState,
+} from './draft-store.ts'
 import type { QuestionNoteKey } from './locales.ts'
-import { askSide } from './side.ts'
+import { askSide, type SideAskTurn } from './side.ts'
 import { cx } from './styles.ts'
 
 /**
@@ -36,6 +38,16 @@ interface SideTurn {
   answer?: string
   error?: string
 }
+
+/** Stable empty thread so switching to a question with no thread does not re-render-loop. */
+const EMPTY_TURNS: SideTurn[] = []
+
+/** Bounded per-question side thread: long card sessions must not grow without limit. */
+const MAX_SIDE_TURNS = 20
+
+/** Defensive stand-ins for a carrier that exposes an empty batch. */
+const EMPTY_QUESTION: QuestionNoteItem = { id: '', question: '', options: [] }
+const EMPTY_DRAFT: QuestionNoteDraftAnswer = { selected: [], notes: {}, custom: '', skipped: false }
 
 /** A removed card can remain mounted until the composer seat updates. */
 const REMOVED_CARD = {
@@ -108,7 +120,10 @@ function isComposing(event: KeyboardEvent<HTMLTextAreaElement>): boolean {
 function sessionIdOf(
   props: { sessionId?: string; session?: unknown },
   frame: HTMLElement | null,
+  carrierSessionId?: string,
 ): string {
+  // The carrier's own sessionId is the authoritative identity of this request.
+  if (typeof carrierSessionId === 'string' && carrierSessionId !== '') return carrierSessionId
   if (typeof props.sessionId === 'string' && props.sessionId !== '') return props.sessionId
   const session = props.session as { sessionId?: unknown; id?: unknown } | undefined
   const fromSession = session?.sessionId ?? session?.id
@@ -125,6 +140,8 @@ interface AnswerFieldProps {
   value: string
   /** Empty-field prompt. */
   placeholder: string
+  /** Accessible name for the field; defaults to the placeholder. */
+  ariaLabel?: string
   /** Whether a submission in flight has frozen the field. */
   disabled: boolean
   /** Whether this field takes focus on mount. */
@@ -156,6 +173,7 @@ function AnswerField(props: AnswerFieldProps) {
         disabled={props.disabled}
         rows={1}
         placeholder={props.placeholder}
+        aria-label={props.ariaLabel ?? props.placeholder}
         onFocus={props.onFocus}
         onChange={props.onChange}
         onKeyDown={props.onKeyDown}
@@ -175,8 +193,8 @@ export interface QuestionNoteComposerProps {
   t: QuestionNoteT
   /** Selector hook over this registration's declared draft store. */
   useStore: <T,>(selector: (state: QuestionNoteDraftState) => T) => T
-  /** The declared store's complete mutation API. */
-  actions: QuestionNoteDraftActions
+  /** The declared store's complete mutation API (draft argument already baked). */
+  actions: QuestionNoteDraftBakedActions
   /** Conversation session id, passed by the composer chain slot. */
   sessionId?: string
   /** Conversation session snapshot, passed by the composer chain slot. */
@@ -289,10 +307,8 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
   const focusedQuestions = useRef(new Set<number>())
   const answerSurface = useRef<HTMLDivElement>(null)
   // Every navigation write stays in bounds and drafts mirrors questions 1:1.
-  // oxlint-disable-next-line typescript/no-non-null-assertion
-  const question = questions[index]!
-  // oxlint-disable-next-line typescript/no-non-null-assertion
-  const draft = drafts[index]!
+  const question = questions[index] ?? EMPTY_QUESTION
+  const draft = drafts[index] ?? EMPTY_DRAFT
   const hasOptions = (question.options?.length ?? 0) > 0
   const isLastQuestion = index === questions.length - 1
 
@@ -303,19 +319,81 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
     setOpenNotes(new Set())
   }, [index, pending.key])
 
-  // Side-question thread: local to this card instance, never an answer draft.
-  const [sideThread, setSideThread] = useState<SideTurn[]>([])
+  // Side-question threads are keyed by pending request + question index: a
+  // follow-up on one question never inherits another question's thread, and
+  // navigating away and back restores the right history.
+  const [sideThreads, setSideThreads] = useState<Record<string, SideTurn[]>>({})
   const [sideInput, setSideInput] = useState('')
-  const [sideBusy, setSideBusy] = useState(false)
-  const [sideError, setSideError] = useState<string | null>(null)
-  const sideAbort = useRef<AbortController | null>(null)
+  // Busy and error are per thread key: a request on one question must neither
+  // disable another question's box nor surface its error there, and switching
+  // questions keeps the request running in its originating thread.
+  const [sideBusyKeys, setSideBusyKeys] = useState<ReadonlySet<string>>(() => new Set())
+  const [sideErrorByKey, setSideErrorByKey] = useState<Record<string, string>>({})
+  const sideAborts = useRef(new Map<string, AbortController>())
   const threadRef = useRef<HTMLDivElement>(null)
   const frameRef = useRef<HTMLDivElement>(null)
-  useEffect(() => () => { sideAbort.current?.abort() }, [])
+  const threadKey = `${String(pending.key)}:${String(index)}`
+  const sideThread = sideThreads[threadKey] ?? EMPTY_TURNS
+  const sideBusy = sideBusyKeys.has(threadKey)
+  const sideError = sideErrorByKey[threadKey] ?? null
+  useEffect(() => () => { for (const controller of sideAborts.current.values()) controller.abort() }, [])
   useEffect(() => {
     const element = threadRef.current
     if (element !== null) element.scrollTop = element.scrollHeight
   }, [sideThread])
+
+  const markSideBusy = (key: string, busy: boolean): void => {
+    setSideBusyKeys((current) => {
+      if (current.has(key) === busy) return current
+      const next = new Set(current)
+      if (busy) next.add(key)
+      else next.delete(key)
+      return next
+    })
+  }
+
+  const setSideErrorFor = (key: string, message: string | null): void => {
+    setSideErrorByKey((current) => {
+      if (message === null) {
+        if (current[key] === undefined) return current
+        const next = { ...current }
+        delete next[key]
+        return next
+      }
+      return current[key] === message ? current : { ...current, [key]: message }
+    })
+  }
+
+  const appendSideTurn = (key: string, turn: SideTurn): void => {
+    setSideThreads((current) => ({
+      ...current,
+      // Keep the thread bounded: a long card session must not grow without limit.
+      [key]: [...(current[key] ?? []), turn].slice(-MAX_SIDE_TURNS),
+    }))
+  }
+
+  const updateSideTurn = (key: string, id: string, update: (turn: SideTurn) => SideTurn): void => {
+    setSideThreads((current) => {
+      const thread = current[key]
+      if (thread === undefined || !thread.some(turn => turn.id === id)) return current
+      return { ...current, [key]: thread.map(turn => turn.id === id ? update(turn) : turn) }
+    })
+  }
+
+  /** Abort the in-flight side ask of one thread and settle its bubble. */
+  const cancelSide = (key: string): void => {
+    const controller = sideAborts.current.get(key)
+    if (controller === undefined) return
+    controller.abort()
+    sideAborts.current.delete(key)
+    markSideBusy(key, false)
+    setSideThreads((current) => ({
+      ...current,
+      [key]: (current[key] ?? []).map(turn => turn.pending
+        ? { ...turn, pending: false, error: t('side.cancelled') }
+        : turn),
+    }))
+  }
 
   const replaceProgress = (nextIndex: number, nextDrafts: QuestionNoteDraftAnswer[]): void => {
     actions.replace(pending.key, {
@@ -342,6 +420,17 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
   }
 
   const blurAnswerSurface = (event: FocusEvent<HTMLDivElement>): void => {
+    if (!event.currentTarget.contains(event.relatedTarget)) pending.releaseFocus()
+  }
+
+  // The side box sits outside the answer surface, so it mirrors that focus
+  // handling: focusing it pauses the countdown (and blur resumes it), while
+  // sending a side question engages the card for good.
+  const focusSidePanel = (event: FocusEvent<HTMLDivElement>): void => {
+    if (!event.currentTarget.contains(event.relatedTarget)) pending.holdFocus()
+  }
+
+  const blurSidePanel = (event: FocusEvent<HTMLDivElement>): void => {
     if (!event.currentTarget.contains(event.relatedTarget)) pending.releaseFocus()
   }
 
@@ -407,8 +496,9 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
         return { ...current, selected, skipped: false }
       }
       // Left-click keeps the official meaning: select only. The note input is
-      // opened by right-click, never as a side effect of choosing.
-      return { selected: [label], custom: '', skipped: false }
+      // opened by right-click, never as a side effect of choosing. Keep the
+      // existing notes: changing the selection must not erase them.
+      return { ...current, selected: [label], custom: '', skipped: false }
     })
   }
 
@@ -476,9 +566,13 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
         }
         if (custom !== '') parts.push(custom)
         const text = parts.join('\n')
+        // Official semantics: a single-select custom answer replaces the
+        // selection. A right-click note can leave both in the draft, so the
+        // selection must be dropped here rather than trusted upstream.
+        const keepSelection = item.multiSelect === true || custom === ''
         return {
           id: item.id,
-          selected: value.selected,
+          selected: keepSelection ? value.selected : [],
           ...(text === '' ? {} : { custom: text }),
         }
       }),
@@ -561,63 +655,82 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
   }
 
   /**
-   * Send the side question through the host `bc-ask` command. The host makes a
-   * direct model call, so this works while the question card is still pending.
-   * The answer is rendered in this card only; it never becomes part of the
-   * pending answer.
+   * Send the side question through the host `bc-ask` command. The host runs a
+   * read-only fork child, so this works while the question card is still
+   * pending and the request can reuse the parent's prompt cache. The answer is
+   * rendered in this card only; it never becomes part of the pending answer.
    */
   const sendSide = (): void => {
-    if (sideBusy || locked) return
+    const requestKey = threadKey
+    // The controller map is the synchronous guard: state lags a fast double-click.
+    if (locked || sideAborts.current.has(requestKey)) return
     const text = sideInput.trim()
     if (text === '') {
-      setSideError(t('side.empty'))
+      setSideErrorFor(requestKey, t('side.empty'))
       return
     }
-    const target = sessionIdOf({ sessionId, session }, frameRef.current)
+    const target = sessionIdOf({ sessionId, session }, frameRef.current, pending.sessionId)
     if (target === '') {
-      setSideError(t('side.noSession'))
+      setSideErrorFor(requestKey, t('side.noSession'))
       return
     }
     const id = `${String(Date.now())}-${Math.random().toString(36).slice(2)}`
+    const history: SideAskTurn[] = (sideThreads[requestKey] ?? [])
+      .filter(turn => !turn.pending && turn.answer !== undefined && turn.answer !== '')
+      .map(turn => ({ question: turn.question, answer: turn.answer ?? '' }))
+    const questionsContext = questions.map((item, itemIndex) => {
+      const value = drafts[itemIndex] as QuestionNoteDraftAnswer
+      return {
+        title: item.question,
+        header: item.header,
+        detail: item.detail,
+        multiSelect: item.multiSelect === true,
+        options: item.options?.map(option => ({
+          label: option.label,
+          description: option.description,
+        })),
+        selected: value.selected,
+        notes: value.notes,
+        custom: value.custom,
+        skipped: value.skipped,
+      }
+    })
     setSideInput('')
-    setSideError(null)
-    setSideThread(current => [...current, { id, question: text, pending: true }])
-    setSideBusy(true)
+    setSideErrorFor(requestKey, null)
+    // An in-flight side question means the user is still deciding: stop the
+    // countdown until the card is answered instead of timing out mid-wait.
+    engage()
     const controller = new AbortController()
-    sideAbort.current = controller
-    const cardContext = {
-      title: question.question,
-      header: question.header,
-      detail: question.detail,
-      options: question.options?.map(option => ({
-        label: option.label,
-        description: option.description,
-      })),
-      selected: draft.selected,
-      notes: draft.notes,
-      custom: draft.custom,
-    }
-    void askSide(target, { question: text, card: cardContext }, controller.signal)
+    sideAborts.current.set(requestKey, controller)
+    markSideBusy(requestKey, true)
+    appendSideTurn(requestKey, { id, question: text, pending: true })
+    void askSide(target, {
+      question: text,
+      questions: questionsContext,
+      activeIndex: index,
+      thread: history,
+    }, controller.signal)
       .then((result) => {
+        if (controller.signal.aborted) return
         if (result.kind !== 'text') throw new Error(result.text !== '' ? result.text : t('side.failed'))
         const answer = result.text.trim()
         if (answer === '') throw new Error(t('side.failed'))
-        setSideThread(current => current.map(turn => turn.id === id
-          ? { ...turn, pending: false, answer }
-          : turn))
+        updateSideTurn(requestKey, id, turn => ({ ...turn, pending: false, answer }))
       })
       .catch((cause: unknown) => {
         if (controller.signal.aborted) return
         const message = cause instanceof Error ? cause.message : String(cause)
         const hint = /busy|忙|占用/i.test(message) ? `\n${t('side.busyHint')}` : ''
-        setSideThread(current => current.map(turn => turn.id === id
-          ? { ...turn, pending: false, error: `${t('side.failed')}：${message}${hint}` }
-          : turn))
+        updateSideTurn(requestKey, id, turn => ({
+          ...turn,
+          pending: false,
+          error: `${t('side.failed')}：${message}${hint}`,
+        }))
       })
       .finally(() => {
-        if (sideAbort.current !== controller) return
-        sideAbort.current = null
-        setSideBusy(false)
+        if (sideAborts.current.get(requestKey) !== controller) return
+        sideAborts.current.delete(requestKey)
+        markSideBusy(requestKey, false)
       })
   }
 
@@ -700,6 +813,14 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
                   const note = draft.notes[option.label] ?? ''
                   // The note input is opened by right-click, not by selection.
                   const supplementHere = review === undefined && !locked && openNotes.has(option.label)
+                  // The button paints only the label line; keep the description,
+                  // recommendation and note state in its accessible name.
+                  const accessibleName = [
+                    display.label,
+                    display.recommended ? t('option.recommended') : '',
+                    option.description ?? '',
+                    note !== '' ? t('note.affordance.filled') : '',
+                  ].filter(part => part !== '').join('，')
                   return (
                     <Fragment key={`${option.label}-${String(optionIndex)}`}>
                       <button
@@ -711,11 +832,14 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
                         )}
                         role={question.multiSelect === true ? 'checkbox' : 'radio'}
                         aria-checked={selected}
-                        aria-label={display.label}
+                        aria-label={accessibleName}
                         title={review === undefined ? t('note.affordance') : undefined}
                         disabled={locked}
                         onClick={() => { choose(option.label) }}
                         onContextMenu={(event) => {
+                          // Only a live card can open a note; leave the native menu
+                          // alone on a review or locked card, where this is a no-op.
+                          if (review !== undefined || locked) return
                           event.preventDefault()
                           event.stopPropagation()
                           openNote(option.label)
@@ -822,7 +946,15 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
             </div>
 
             {review === undefined && (
-              <div className={cx.sideAsk} data-better-choice-side>
+              <div
+                className={cx.sideAsk}
+                data-better-choice-side
+                // The side box sits outside the focus-capturing answer surface:
+                // without this, a timed card keeps counting (and can time out)
+                // while the user reads or writes a side question.
+                onFocusCapture={focusSidePanel}
+                onBlurCapture={blurSidePanel}
+              >
                 <div className={cx.sideHeader}>
                   <span className={cx.sideTitle}>{t('side.title')}</span>
                   <span className={cx.sideHint}>{t('side.hint')}</span>
@@ -855,7 +987,7 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
                     disabled={sideBusy || locked}
                     placeholder={t('side.placeholder')}
                     aria-label={t('side.title')}
-                    onChange={(event) => { setSideInput(event.target.value); setSideError(null) }}
+                    onChange={(event) => { setSideInput(event.target.value); setSideErrorFor(threadKey, null) }}
                     onKeyDown={sideKeyDown}
                   />
                   <Button
@@ -865,6 +997,11 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
                   >
                     {sideBusy ? t('side.answering') : t('side.send')}
                   </Button>
+                  {sideBusy && (
+                    <Button variant="outline" onClick={() => { cancelSide(threadKey) }}>
+                      {t('side.cancel')}
+                    </Button>
+                  )}
                 </div>
               </div>
             )}

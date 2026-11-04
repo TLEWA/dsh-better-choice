@@ -1,7 +1,8 @@
 /**
- * Bridge to the host's `bc-ask` command. The host answers with one direct
- * model call; no child agent and no parent-turn dependency is involved, so the
- * question card can stay pending while the side question is answered.
+ * Bridge to the host's `bc-ask` command. The host runs one read-only fork
+ * subagent: it inherits the parent's system prompt, tool declarations, and
+ * completed-turn history, so the side request reuses the parent's prompt cache.
+ * The question card can stay pending while the child answers.
  */
 
 /** One option as presented by the pending question card. */
@@ -15,16 +16,28 @@ export interface SideAskCard {
   title?: string
   header?: string
   detail?: string
+  multiSelect?: boolean
   options?: SideAskOption[]
   selected?: string[]
   notes?: Record<string, string>
   custom?: string
 }
 
+/** One completed side-question turn, replayed into the next prompt. */
+export interface SideAskTurn {
+  question: string
+  answer: string
+}
+
 /** One side-question request. */
 export interface SideAskInput {
   question: string
-  card?: SideAskCard
+  /** Every question in the pending batch, not only the visible one. */
+  questions?: SideAskCard[]
+  /** Index of the question the user is currently looking at. */
+  activeIndex?: number
+  /** Earlier completed turns for this question, oldest first. */
+  thread?: SideAskTurn[]
 }
 
 /** One side-question answer returned by the host command. */
@@ -51,7 +64,7 @@ export function setSideAskService(next: SideAskService | null): void {
 /**
  * Ask the model a side question through the host `bc-ask` command.
  * @param sessionId - the conversation session the question card belongs to.
- * @param input - the side question plus the pending card's current context.
+ * @param input - the side question plus the pending card batch's current context.
  * @param signal - aborts the command when the card unmounts.
  * @returns the host command's answer text.
  */

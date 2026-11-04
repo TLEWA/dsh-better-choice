@@ -32,7 +32,7 @@ and the limits of the project's guarantees. It does not change any term of
 | Part | AI involvement | Notes |
 | --- | --- | --- |
 | `src/client/*` | High | Card enhancement, side thread, carrier matching, generated styles |
-| `src/index.ts` | High | `bc-ask` command, history trimming, side prompt |
+| `src/index.ts` | High | `bc-ask` command, fork child activation, side prompt |
 | `scripts/*` | High | esbuild pipeline and CSS prefix generation |
 | `test/*.test.mjs` | High | Package manifest, artifacts, and host command tests |
 | `README*.md` / `NOTICE*.md` / this file | High | Drafted by AI and updated with the code |
@@ -46,9 +46,10 @@ tests, and exercising the card in a real DSH client.
 Verified:
 
 - `npm run build` and `npm run check` pass;
-- all 6 `node:test` cases pass: package metadata and `files`, `dsh` manifest, client
-  ModuleLoader envelope, host plugin exports, `bc-ask` streaming without mutating
-  session history, and rejection of malformed/empty requests;
+- all 8 `node:test` cases pass: package metadata and `files`, `dsh` manifest, client
+  ModuleLoader envelope, host plugin exports, fork-child activation, the execution guard
+  rejecting child tools, multi-question/thread prompts, stopReason branches, and
+  rejection of malformed/empty requests;
 - in the DSH desktop Web GUI on Windows (`127.0.0.1:9260`), a real pending question was
   opened and a genuine right-click was dispatched through CDP
   `Input.dispatchMouseEvent` (`mousePressed` / `mouseReleased`):
@@ -56,8 +57,12 @@ Verified:
   - after typing a note and submitting, the model replied with
     "选项A / 补充备注：测试备注-仅验证", proving the note was merged into `custom`
     and delivered;
-- the side-ask box was present in the same card and its host `bc-ask` request returned
-  streamed text.
+- in a separate `bc-test` profile (`127.0.0.1:7166`), the side ask was verified in the
+  real GUI: the card's side box starts `bc-ask`, the host creates an independent fork
+  child, and the child could repeat the parent's first instruction (seed works). The
+  first parent request and the following fork child request both reported
+  `cacheReadTokens` 8448; after the parent completed a turn, the child reported 9344
+  (prefix-cache hit). The parent's `command/run` had no args (`recordInput: false`).
 
 Not fully verified:
 
@@ -65,7 +70,7 @@ Not fully verified:
 - macOS and Linux clients;
 - every branch of multi-select `(unselected)` marking, multi-question batches, and
   post-timeout continuation;
-- the 120K-character trimming boundary in very long sessions;
+- the boundary behavior when a very long session nears the model context window;
 - coexistence with another third-party plugin that claims the same composer slot.
 
 ## 5. Code provenance
@@ -75,8 +80,9 @@ Not fully verified:
   (MIT, NedFlanders). The exact scope and full license text are in
   [NOTICE.en.md](NOTICE.en.md).
 - The side-ask interaction was inspired by
-  [`dsh-btw`](https://github.com/MichengAI/dsh-btw) (Apache-2.0). This project calls the
-  host's `ctx.llm.stream` directly and does not copy its source code.
+  [`dsh-btw`](https://github.com/MichengAI/dsh-btw) (Apache-2.0). This project implements
+  it with the host's public `ctx.subagents.startActivation` and the fork provider; it
+  does not copy Btw's source code.
 - DSH bundled packages were used only through public interfaces, types, and runtime
   behavior; **their source was not copied**.
 - Git history records each change.
@@ -87,8 +93,10 @@ Not fully verified:
 - A side ask sends "existing session context + your question + the current card" to the
   **model provider configured for the current session**. It uses the same model channel
   as normal conversation and goes nowhere else.
-- The plugin does not write session logs; side questions and answers live in page memory
-  and disappear when the card is closed or the page is refreshed.
+- The plugin does not write the side Q&A back to the parent session; the fork child has
+  its own child-session log, like any subagent. The question text is not persisted in the
+  parent's `command/run` (`recordInput: false`), and the in-page thread disappears when the
+  card is closed or the page is refreshed.
 - Notes travel only with the normal `ask_user_question` answer; they are not uploaded
   separately.
 

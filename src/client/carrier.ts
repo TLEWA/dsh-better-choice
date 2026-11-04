@@ -63,6 +63,8 @@ export interface QuestionNoteCardSnapshot {
 export interface QuestionNoteCarrier {
   /** Render identity and draft-store key. */
   readonly key: string
+  /** Conversation session this request belongs to (public on the carrier). */
+  readonly sessionId?: string
   /** The request's complete question batch. */
   readonly questions: readonly QuestionNoteItem[]
   /** Recorded answers of a settled call; present only on a read-only card. */
@@ -113,7 +115,8 @@ export function isQuestionCarrier(value: unknown): value is QuestionNoteCarrier 
   if (typeof value !== 'object' || value === null) return false
   const carrier = value as Record<string, unknown>
   return typeof carrier.key === 'string'
-    && Array.isArray(carrier.questions)
+    && (carrier.sessionId === undefined || typeof carrier.sessionId === 'string')
+    && Array.isArray(carrier.questions) && carrier.questions.length > 0
     && (carrier.review === undefined || Array.isArray(carrier.review))
     && (carrier.dismissal === 'hide' || carrier.dismissal === 'cancel')
     && typeof carrier.subscribe === 'function'
