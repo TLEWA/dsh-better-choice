@@ -5,6 +5,21 @@
 
 [简体中文](CHANGELOG.md) · [English](CHANGELOG.en.md)
 
+## [1.0.3] - 2026-11-05
+
+### 变更
+
+- `package.json` 新增 `engines.dsh: ">=0.2.0-rc.1 <0.3.0-0"`，显式声明适配的
+  DSH 版本区间。DSH 插件市场与宿主据此展示、校验兼容版本（此前未声明
+  `engines.dsh`，市场显示为不限版本）。
+- 无运行时代码改动。
+- Release 工作流额外上传版本无关的 `dsh-better-choice.tgz`，便于长期引用
+  `releases/latest/download/` 链接。
+
+### 兼容
+
+- 适配 DSH `0.2.0-rc.1` 起的 `0.2.x`；已在 `0.2.2-rc.1` Web 宿主真机验证。
+
 ## [1.0.2] - 2026-11-05
 
 ### 变更

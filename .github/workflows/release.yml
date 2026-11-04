@@ -44,8 +44,12 @@ jobs:
         run: |
           set -euo pipefail
           TARBALL="$(npm pack --silent | tail -n 1)"
+          # Version-free asset name so releases/latest/download/<name>.tgz keeps working.
+          STABLE="dsh-better-choice.tgz"
+          cp "${TARBALL}" "${STABLE}"
           echo "TARBALL=${TARBALL}" >> "$GITHUB_ENV"
-          sha256sum "$TARBALL" > SHA256SUMS.txt
+          echo "STABLE=${STABLE}" >> "$GITHUB_ENV"
+          sha256sum "${TARBALL}" "${STABLE}" > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Create GitHub release
@@ -56,6 +60,7 @@ jobs:
           set -euo pipefail
           gh release create "${GITHUB_REF_NAME}" \
             "${TARBALL}" \
+            "${STABLE}" \
             SHA256SUMS.txt \
             --title "dsh-better-choice ${VERSION}" \
             --generate-notes

@@ -89,8 +89,8 @@ Then choose.
 
 ## Installation
 
-Requires DSH 0.2.0-rc family (client packages `^0.2.0-rc.1`) and Node.js 20+;
-verified on DSH `0.2.2-rc.1`.
+Requires the DSH 0.2.0-rc family (`engines.dsh: >=0.2.0-rc.1 <0.3.0-0`, client
+packages `^0.2.0-rc.1`) and Node.js 20+; verified on DSH `0.2.2-rc.1`.
 
 ### From npm (recommended)
 
@@ -127,19 +127,19 @@ https://github.com/TLEWA/dsh-better-choice
 Pin a tag:
 
 ```text
-https://github.com/TLEWA/dsh-better-choice#v1.0.1
+https://github.com/TLEWA/dsh-better-choice#v1.0.3
 ```
 
 Or install the release asset directly:
 
 ```text
-https://github.com/TLEWA/dsh-better-choice/releases/download/v1.0.1/dsh-better-choice-1.0.1.tgz
+https://github.com/TLEWA/dsh-better-choice/releases/latest/download/dsh-better-choice.tgz
 ```
 
 Equivalent CLI:
 
 ```powershell
-dsh plugin --profile desktop add github:TLEWA/dsh-better-choice#v1.0.1
+dsh plugin --profile desktop add github:TLEWA/dsh-better-choice#v1.0.3
 ```
 
 ### From source
@@ -242,7 +242,8 @@ the `window.__ModuleLoader__` envelope; the host artifact is unbundled ESM.
 ## Compatibility
 
 Type-checked against the DSH `0.2.2-rc.1` composer slot and `PendingQuestion` contract;
-peer dependencies are declared as `^0.2.0-rc.1`, and it is verified on a real
+the manifest declares `engines.dsh: >=0.2.0-rc.1 <0.3.0-0`, peer dependencies are
+declared as `^0.2.0-rc.1`, and it is verified on a real
 `0.2.2-rc.1` web host. If a DSH upgrade changes the internal card structure:
 
 - the enhanced card declines to claim it and the official card still works;

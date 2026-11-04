@@ -5,6 +5,22 @@ All notable changes are documented here. This project follows
 
 [简体中文](CHANGELOG.md) · [English](CHANGELOG.en.md)
 
+## [1.0.3] - 2026-11-05
+
+### Changed
+
+- `package.json` now declares `engines.dsh: ">=0.2.0-rc.1 <0.3.0-0"`, stating the
+  supported DSH version range explicitly. The DSH plugin marketplace and runtime use it
+  to display and enforce compatible versions (without it, the market listed the plugin
+  as compatible with every version).
+- No runtime code change.
+- The release workflow also uploads a version-free `dsh-better-choice.tgz` asset so
+  `releases/latest/download/` links keep working.
+
+### Compatibility
+
+- Supports DSH `0.2.x` from `0.2.0-rc.1`; verified on a real `0.2.2-rc.1` web host.
+
 ## [1.0.2] - 2026-11-05
 
 ### Changed

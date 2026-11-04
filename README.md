@@ -81,8 +81,8 @@
 
 ## 安装
 
-要求 DSH 0.2.0-rc 族（客户端内置包 `^0.2.0-rc.1`），Node.js 20+；
-已在 DSH `0.2.2-rc.1` 上验证。
+要求 DSH 0.2.0-rc 族（`engines.dsh: >=0.2.0-rc.1 <0.3.0-0`，客户端内置包
+`^0.2.0-rc.1`），Node.js 20+；已在 DSH `0.2.2-rc.1` 上验证。
 
 ### 从 npm 安装（推荐）
 
@@ -118,19 +118,19 @@ https://github.com/TLEWA/dsh-better-choice
 固定到标签：
 
 ```text
-https://github.com/TLEWA/dsh-better-choice#v1.0.1
+https://github.com/TLEWA/dsh-better-choice#v1.0.3
 ```
 
 或直接安装 Release 附件：
 
 ```text
-https://github.com/TLEWA/dsh-better-choice/releases/download/v1.0.1/dsh-better-choice-1.0.1.tgz
+https://github.com/TLEWA/dsh-better-choice/releases/latest/download/dsh-better-choice.tgz
 ```
 
 命令行等价写法：
 
 ```powershell
-dsh plugin --profile desktop add github:TLEWA/dsh-better-choice#v1.0.1
+dsh plugin --profile desktop add github:TLEWA/dsh-better-choice#v1.0.3
 ```
 
 ### 从源码安装
@@ -223,7 +223,8 @@ npm pack          # 生成可安装的 .tgz
 ## 兼容性
 
 按 DSH 客户端 `0.2.2-rc.1` 的 composer 槽与 `PendingQuestion` 契约做类型校验，
-peer 依赖声明为 `^0.2.0-rc.1`；已在 `0.2.2-rc.1` Web 宿主真机验证。DSH 升级若改动
+manifest 的 `engines.dsh` 声明为 `>=0.2.0-rc.1 <0.3.0-0`，peer 依赖声明为
+`^0.2.0-rc.1`；已在 `0.2.2-rc.1` Web 宿主真机验证。DSH 升级若改动
 问题卡内部结构：
 
 - 识别失败时增强卡片不接管，官方问题卡仍可用；
