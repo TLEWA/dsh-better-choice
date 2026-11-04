@@ -63,6 +63,11 @@ Verified:
   first parent request and the following fork child request both reported
   `cacheReadTokens` 8448; after the parent completed a turn, the child reported 9344
   (prefix-cache hit). The parent's `command/run` had no args (`recordInput: false`).
+- on a real DSH `0.2.2-rc.1` web host (`127.0.0.1:9687`), the full flow was re-verified via
+  CDP `Input.dispatchMouseEvent`: right-clicking an option opened the note box, and after
+  typing "不要香菜" the submitted answer read "B 沙拉，不要香菜"; the fork side ask returned
+  an answer while the card stayed pending, and submitting closed it normally. On the same
+  version `npm run typecheck` passes against the real client contract packages.
 
 Not fully verified:
 

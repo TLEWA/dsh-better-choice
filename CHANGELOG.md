@@ -5,6 +5,26 @@
 
 [简体中文](CHANGELOG.md) · [English](CHANGELOG.en.md)
 
+## [1.0.2] - 2026-11-05
+
+### 变更
+
+- 开发期类型检查改为直接使用真实 DSH `0.2.2-rc.1` 客户端契约包
+  （`dsh-client-ui-renderer`、`dsh-client-ui-session`、`dsh-client-ui-slots`、
+  `dsh-client-locale`、`dsh-client-ui-conversation`），删除会遮蔽真实类型的本地
+  ambient shim；`types/client-env.d.ts` 只做类型引入。`npm run typecheck`
+  现在能真实暴露槽位与 `PendingQuestion` 契约变化。
+- devDependencies 新增 `@deepseek-ai/dsh-client-ui-renderer` 与
+  `@deepseek-ai/dsh-client-ui-session`（`^0.2.2-rc.1`）。
+
+### 兼容
+
+- 已在 DSH `0.2.2-rc.1` Web 宿主真机验证：问题卡渲染、CDP 真实右键补充、
+  补充内容合并进答案、fork 旁问、提交并关闭卡片全部正常。
+- 宿主命令、subagent、tool guard、slot 链与 `PendingQuestion` 契约在 0.2.2-rc.1
+  下均无破坏性变化；本轮没有客户端或宿主运行时代码改动，peer 依赖保持
+  `^0.2.0-rc.1`（`0.2.0-rc` 族均可安装）。
+
 ## [1.0.1] - 2026-11-04
 
 ### 修复

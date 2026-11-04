@@ -5,6 +5,28 @@ All notable changes are documented here. This project follows
 
 [简体中文](CHANGELOG.md) · [English](CHANGELOG.en.md)
 
+## [1.0.2] - 2026-11-05
+
+### Changed
+
+- Development type-checking now runs against the real DSH `0.2.2-rc.1` client contract
+  packages (`dsh-client-ui-renderer`, `dsh-client-ui-session`, `dsh-client-ui-slots`,
+  `dsh-client-locale`, `dsh-client-ui-conversation`). The local ambient shims that
+  shadowed the real types are gone; `types/client-env.d.ts` only pulls the types in.
+  `npm run typecheck` now really surfaces slot and `PendingQuestion` contract changes.
+- Added `@deepseek-ai/dsh-client-ui-renderer` and `@deepseek-ai/dsh-client-ui-session`
+  (`^0.2.2-rc.1`) to devDependencies.
+
+### Compatibility
+
+- Verified on a real DSH `0.2.2-rc.1` web host: question card rendering, CDP right-click
+  note, merging the note into the submitted answer, the fork side ask, and submitting /
+  closing the card all work.
+- Host commands, subagents, the tool guard, the slot chain and the `PendingQuestion`
+  contract have no breaking changes in 0.2.2-rc.1. This release changes no client or host
+  runtime code; peer dependencies stay at `^0.2.0-rc.1` (the whole `0.2.0-rc` family can
+  install it).
+
 ## [1.0.1] - 2026-11-04
 
 ### Fixed

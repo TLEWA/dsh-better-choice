@@ -51,6 +51,10 @@
   首轮主请求与紧随的 fork 子请求 `cacheReadTokens` 均为 8448；父会话完成一轮后，
   子请求增至 9344（前缀缓存命中）；父会话 `command/run` 不含 args
   （`recordInput: false` 生效）。
+- 在 DSH `0.2.2-rc.1` Web 宿主（`127.0.0.1:9687`）用 CDP `Input.dispatchMouseEvent`
+  复验完整链路：右键选项出现补充框，输入「不要香菜」后提交的答案显示为
+  「B 沙拉，不要香菜」；fork 旁问返回回答、卡片保持待答，提交后正常关闭。
+  同一版本下 `npm run typecheck` 直接针对真实客户端契约包通过。
 
 未完全验证：
 

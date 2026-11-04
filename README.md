@@ -81,7 +81,8 @@
 
 ## 安装
 
-要求 DSH 0.2.0-rc 族（客户端内置包 `^0.2.0-rc.1`），Node.js 20+。
+要求 DSH 0.2.0-rc 族（客户端内置包 `^0.2.0-rc.1`），Node.js 20+；
+已在 DSH `0.2.2-rc.1` 上验证。
 
 ### 从 npm 安装（推荐）
 
@@ -221,8 +222,9 @@ npm pack          # 生成可安装的 .tgz
 
 ## 兼容性
 
-按 DSH 客户端 `0.2.1-rc` 族的 composer 槽与 `PendingQuestion` 形状实现，peer 依赖
-声明为 `^0.2.0-rc.1`。DSH 升级若改动问题卡内部结构：
+按 DSH 客户端 `0.2.2-rc.1` 的 composer 槽与 `PendingQuestion` 契约做类型校验，
+peer 依赖声明为 `^0.2.0-rc.1`；已在 `0.2.2-rc.1` Web 宿主真机验证。DSH 升级若改动
+问题卡内部结构：
 
 - 识别失败时增强卡片不接管，官方问题卡仍可用；
 - 旁问依赖宿主命令、`ctx.subagents.startActivation` 与 fork provider；接口变化时旁问会报错，

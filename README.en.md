@@ -89,7 +89,8 @@ Then choose.
 
 ## Installation
 
-Requires DSH 0.2.0-rc family (client packages `^0.2.0-rc.1`) and Node.js 20+.
+Requires DSH 0.2.0-rc family (client packages `^0.2.0-rc.1`) and Node.js 20+;
+verified on DSH `0.2.2-rc.1`.
 
 ### From npm (recommended)
 
@@ -240,9 +241,9 @@ the `window.__ModuleLoader__` envelope; the host artifact is unbundled ESM.
 
 ## Compatibility
 
-Implemented against the DSH `0.2.1-rc` family's composer slot and `PendingQuestion`
-shape; peer dependencies are declared as `^0.2.0-rc.1`. If a DSH upgrade changes the
-internal card structure:
+Type-checked against the DSH `0.2.2-rc.1` composer slot and `PendingQuestion` contract;
+peer dependencies are declared as `^0.2.0-rc.1`, and it is verified on a real
+`0.2.2-rc.1` web host. If a DSH upgrade changes the internal card structure:
 
 - the enhanced card declines to claim it and the official card still works;
 - the side ask depends on the host command, `ctx.subagents.startActivation`, and the fork
