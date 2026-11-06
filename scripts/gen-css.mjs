@@ -60,6 +60,27 @@ const extra = `
 }
 
 /* ===== side question (btw-like) ===== */
+
+/* The card is capped at min(60vh, 520px) and .body ships with
+   min-height: 0, so a long side answer used to win the height fight: the
+   option list collapsed to ~39px while the thread kept its 230px. While a
+   side thread exists, floor the choices and let the side panel yield height
+   first (its thread scrolls inside). min() keeps short viewports usable. */
+.bodyBeside {
+  /* The floor is bounded by the card's own cap: 200px when the card is tall
+     enough, less on short viewports, so header/footer can never be pushed
+     out of the card. ~260px is the fixed chrome (header, footer, threaded
+     side panel minimum, gaps). */
+  min-height: min(200px, calc(min(66vh, 560px) - 260px));
+}
+
+/* A taller cap only for the live card: with the choice area floored at 200px
+   the side thread would otherwise be squeezed to ~69px and become unreadable
+   itself. The :not(.cardMinimized) guard keeps the collapsed card untouched. */
+.card:not(.cardMinimized) {
+  max-height: min(66vh, 560px);
+}
+
 .sideAsk {
   display: flex;
   flex-direction: column;
@@ -68,6 +89,21 @@ const extra = `
   margin: 10px 12px 0;
   padding: 10px 0 0;
   border-top: 1px solid var(--dsw-alias-border-l2);
+}
+
+/* Only once a side answer exists does the panel compete for height: it then
+   shrinks before the choices and scrolls its thread. Without this class the
+   empty input row keeps its old size. */
+.sideAskThreaded {
+  flex: 0 1 auto;
+  min-height: 118px;
+  overflow: hidden;
+}
+
+.sideHeader,
+.sideInputRow,
+.sideError {
+  flex-shrink: 0;
 }
 
 .sideHeader {
@@ -95,6 +131,8 @@ const extra = `
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
   max-height: 230px;
   overflow-y: auto;
   overscroll-behavior: contain;

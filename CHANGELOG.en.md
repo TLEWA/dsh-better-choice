@@ -5,6 +5,27 @@ All notable changes are documented here. This project follows
 
 [简体中文](CHANGELOG.md) · [English](CHANGELOG.en.md)
 
+## [1.0.4] - 2026-11-06
+
+### Fixed
+
+- Right-clicking an option to open its note and then clicking another option left the
+  first option's blue highlight in place, which looked like the click was ignored. A
+  click (or a single-select right-click) that deselects an option now closes that
+  option's note row too; the typed note stays in the draft and is still submitted as
+  "(未选)" instead of being lost.
+- A long side answer squeezed the choice area down to a sliver (39px measured). While a
+  side thread exists the option list now keeps a floor of
+  `min(200px, calc(min(66vh,560px) - 260px))`, the side panel yields height first and
+  scrolls inside its own thread, and the card cap moves from `min(60vh,520px)` to
+  `min(66vh,560px)`. Without a side thread the card geometry is unchanged.
+
+### Compatibility
+
+- Verified on a real DSH `0.2.2-rc.1` Web host: right-click notes, switching
+  options, card layout with a long side answer, minimize, and custom answers
+  replacing the selection.
+
 ## [1.0.3] - 2026-11-05
 
 ### Changed

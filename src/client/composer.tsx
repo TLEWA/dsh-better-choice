@@ -487,19 +487,38 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
     setError(null)
   }
 
+  /**
+   * Close the note row of every option the change left unselected. The typed
+   * text stays in `draft.notes` (submission keeps it as `(未选)`), so closing
+   * a row never loses input — it only keeps the visible highlight on the
+   * selection the user just made instead of leaving the previous option's
+   * note row looking selected.
+   * @param selected - the selection after the change.
+   */
+  const closeUnselectedNotes = (selected: readonly string[]): void => {
+    setOpenNotes((current) => {
+      const next = new Set([...current].filter(item => selected.includes(item)))
+      return next.size === current.size ? current : next
+    })
+  }
+
   const choose = (label: string): void => {
+    let nextSelected: string[] = []
     updateDraft((current) => {
       if (question.multiSelect === true) {
         const selected = current.selected.includes(label)
           ? current.selected.filter(item => item !== label)
           : [...current.selected, label]
+        nextSelected = selected
         return { ...current, selected, skipped: false }
       }
       // Left-click keeps the official meaning: select only. The note input is
       // opened by right-click, never as a side effect of choosing. Keep the
       // existing notes: changing the selection must not erase them.
+      nextSelected = [label]
       return { ...current, selected: [label], custom: '', skipped: false }
     })
+    closeUnselectedNotes(nextSelected)
   }
 
   /**
@@ -510,12 +529,17 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
    */
   const openNote = (label: string): void => {
     if (locked) return
+    let nextSelected: string[] = []
     updateDraft((current) => {
       const selected = question.multiSelect === true
         ? (current.selected.includes(label) ? current.selected : [...current.selected, label])
         : [label]
+      nextSelected = selected
       return { ...current, selected, skipped: false }
     })
+    // Right-click selects this option, so its row is the only one that may
+    // stay open; a previously opened row on a now-unselected option closes.
+    closeUnselectedNotes(nextSelected)
     setOpenNotes((current) => {
       const next = new Set(current)
       next.add(label)
@@ -633,6 +657,10 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
       custom: value,
       skipped: false,
     }))
+    // A single-select custom answer replaces the selection, so any open note
+    // row no longer annotates a selected option; close it with the same rule
+    // as a click that deselects. The note text still travels as `(未选)`.
+    if (question.multiSelect !== true) closeUnselectedNotes([])
   }
 
   const continueFromCustom = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
@@ -798,7 +826,7 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
           <>
             <div
               ref={answerSurface}
-              className={cx.body}
+              className={cls(cx.body, sideThread.length > 0 && cx.bodyBeside)}
               data-question-scroll
               onFocusCapture={focusAnswerSurface}
               onBlurCapture={blurAnswerSurface}
@@ -947,7 +975,7 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
 
             {review === undefined && (
               <div
-                className={cx.sideAsk}
+                className={cls(cx.sideAsk, sideThread.length > 0 && cx.sideAskThreaded)}
                 data-better-choice-side
                 // The side box sits outside the focus-capturing answer surface:
                 // without this, a timed card keeps counting (and can time out)
