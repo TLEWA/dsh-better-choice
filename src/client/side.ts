@@ -62,6 +62,16 @@ export function setSideAskService(next: SideAskService | null): void {
 }
 
 /**
+ * Read the installed backend. Used to make each plugin instance release only
+ * the bridge it installed: a reload mounts the next instance before the old
+ * one's cleanup runs, and an unconditional null would break the live one.
+ * @returns the current backend, or null when none is installed.
+ */
+export function getSideAskService(): SideAskService | null {
+  return service
+}
+
+/**
  * Ask the model a side question through the host `bc-ask` command.
  * @param sessionId - the conversation session the question card belongs to.
  * @param input - the side question plus the pending card batch's current context.

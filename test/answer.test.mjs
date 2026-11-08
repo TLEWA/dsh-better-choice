@@ -1,0 +1,86 @@
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { build } from 'esbuild'
+
+const root = dirname(dirname(fileURLToPath(import.meta.url)))
+
+/**
+ * Bundle the pure answer module for node: it is authored in TypeScript for the
+ * browser half but has no runtime dependency, so esbuild is the cheapest way to
+ * test the wire shape the host will receive.
+ */
+async function loadAnswer() {
+  const result = await build({
+    entryPoints: [join(root, 'src/client/answer.ts')],
+    bundle: true,
+    format: 'esm',
+    platform: 'neutral',
+    write: false,
+    logLevel: 'silent',
+  })
+  const code = result.outputFiles[0].text
+  return import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`)
+}
+
+const { hasAnswer, mergeAnswer, mergeAnswers } = await loadAnswer()
+
+const single = { id: 'q1', question: 'Pick one', options: [{ label: 'A' }, { label: 'B' }] }
+const multi = { id: 'q2', question: 'Pick many', multiSelect: true, options: [{ label: 'A' }, { label: 'B' }] }
+
+function draft(overrides = {}) {
+  return { selected: [], notes: {}, custom: '', skipped: false, ...overrides }
+}
+
+test('hasAnswer accepts a selection, custom text, or a note alone', () => {
+  assert.equal(hasAnswer(draft()), false)
+  assert.equal(hasAnswer(draft({ selected: ['A'] })), true)
+  assert.equal(hasAnswer(draft({ custom: 'own answer' })), true)
+  assert.equal(hasAnswer(draft({ notes: { A: 'note only' } })), true)
+  assert.equal(hasAnswer(draft({ notes: { A: '   ' } })), false)
+})
+
+test('a single-select note carries its option label', () => {
+  const answer = mergeAnswer(draft({ selected: ['B'], notes: { B: '先灰度 5%' } }), single)
+  assert.deepEqual(answer, { id: 'q1', selected: ['B'], custom: 'B: 先灰度 5%' })
+})
+
+test('a single-select custom answer drops the selection and marks the leftover note', () => {
+  const answer = mergeAnswer(draft({ selected: ['B'], notes: { B: 'note' }, custom: '自己来' }), single)
+  assert.deepEqual(answer, { id: 'q1', selected: [], custom: '(未选) B: note\n自己来' })
+})
+
+test('a multi-select note keeps the selection and labels deselected notes', () => {
+  const answer = mergeAnswer(
+    draft({ selected: ['B', 'A'], notes: { A: 'first', B: '', C: 'third' }, custom: 'and this' }),
+    multi,
+  )
+  assert.deepEqual(answer, {
+    id: 'q2',
+    selected: ['B', 'A'],
+    custom: 'A: first\n(未选) C: third\nand this',
+  })
+})
+
+test('notes follow the selection order, then the remaining options', () => {
+  const answer = mergeAnswer(draft({ selected: ['B', 'A'], notes: { A: 'x', B: 'y' } }), multi)
+  assert.equal(answer.custom, 'B: y\nA: x')
+})
+
+test('a skipped draft answers with nothing selected and no custom text', () => {
+  const answer = mergeAnswer(draft({ selected: ['A'], notes: { A: 'x' }, skipped: true }), single)
+  assert.deepEqual(answer, { id: 'q1', selected: [] })
+})
+
+test('a missing draft answers as an empty selection instead of crashing', () => {
+  assert.deepEqual(mergeAnswer(undefined, single), { id: 'q1', selected: [] })
+})
+
+test('mergeAnswers keeps the request order and ids', () => {
+  const batch = mergeAnswers([draft({ selected: ['A'] }), draft({ custom: 'x' })], [single, multi])
+  assert.deepEqual(batch.answers, [
+    { id: 'q1', selected: ['A'] },
+    { id: 'q2', selected: [], custom: 'x' },
+  ])
+})

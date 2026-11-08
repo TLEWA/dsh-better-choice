@@ -1,6 +1,6 @@
 {
   "name": "dsh-better-choice",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "type": "module",
   "description": "DSH ask_user_question enhancement: right-click an option to add a note, and ask the model a side question before choosing — with the session's own context and cache-friendly prefix.",
   "keywords": [
@@ -92,7 +92,7 @@
     "build": "node scripts/build.mjs",
     "check": "node --check lib/index.js && node --check lib/client.js",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test test/package.test.mjs",
+    "test": "node --test test/answer.test.mjs test/package.test.mjs",
     "prepack": "npm run build && npm run check && npm run typecheck && npm test",
     "prepublishOnly": "npm run build && npm run check && npm run typecheck && npm test"
   },

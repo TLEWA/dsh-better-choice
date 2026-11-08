@@ -5,6 +5,36 @@ All notable changes are documented here. This project follows
 
 [简体中文](CHANGELOG.md) · [English](CHANGELOG.en.md)
 
+## [1.0.5] - 2026-11-06
+
+### Fixed
+
+- A single-select note is now submitted with its option label (for example
+  `Plan B: roll out to 5% first`). It used to be plain text, so once a bottom custom answer
+  replaced the selection (official semantics) the note had neither a label nor the
+  "(未选)" marker and the model could not tell which option it belonged to. Single- and
+  multi-select now share one labelling rule, matching the README example.
+- A question with only an option note (no selection, no custom answer) is no longer
+  treated as unanswered and can be submitted.
+- The side-question box grows with its text up to six lines; it used to stay 36px tall
+  and scroll horizontally.
+- A plugin reload or upgrade no longer keeps the previous stylesheet: the sheet is
+  reference-counted by mounted instances, refreshed in place on reload, and removed only
+  by the last user. The side-ask bridge likewise clears only the instance that installed
+  it.
+- The side-ask failure fallback is localized; `side question failed` no longer leaks
+  into the Chinese UI.
+
+### Changed
+
+- Answer shaping moved to React-free `src/client/answer.ts` with 8 new tests covering
+  single/multi select, deselected notes, skipped and missing drafts (the client half had
+  no tests before).
+- Removed unused `sideActions` and `sideTextarea` classes plus 3 unused copy keys.
+- Typing no longer rebuilds the drafts array or recomputes the restore disposition each
+  render, and the question detail plus side answers skip Markdown re-parsing while their
+  text is unchanged.
+
 ## [1.0.4] - 2026-11-06
 
 ### Fixed

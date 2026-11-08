@@ -16,7 +16,7 @@ import { createQuestionNoteDraftStore } from './draft-store.ts'
 import { QuestionNoteComposer } from './composer.tsx'
 import { selectQuestionCarrier } from './carrier.ts'
 import { en, zh, type QuestionNoteKey } from './locales.ts'
-import { setSideAskService, type SideAskInput, type SideAskService } from './side.ts'
+import { getSideAskService, setSideAskService, type SideAskInput, type SideAskService } from './side.ts'
 import { STYLES } from './styles.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -54,15 +54,40 @@ interface SideAskRemote {
   commands: CommandsRemote
 }
 
-/** Put the generated component CSS into the document exactly once per load. */
+/** Id of the injected stylesheet; a reload refreshes this element in place. */
+const STYLE_ID = 'dsh-better-choice-styles'
+
+/**
+ * Put the generated component CSS into the document and keep it current.
+ * The sheet is shared by every mounted instance (and by a reloading copy of
+ * this module), so it is released only when the last user unmounts; a stale
+ * sheet from a previous build is rewritten in place instead of being trusted.
+ * @returns release callback for this instance's use of the sheet.
+ */
 function installStyles(): () => void {
-  const existing = document.getElementById('dsh-better-choice-styles')
-  if (existing !== null) return () => {}
-  const style = document.createElement('style')
-  style.id = 'dsh-better-choice-styles'
-  style.textContent = STYLES
-  document.head.appendChild(style)
-  return () => style.remove()
+  const existing = document.getElementById(STYLE_ID) as HTMLStyleElement | null
+  const style = existing ?? document.createElement('style')
+  if (existing === null) {
+    style.id = STYLE_ID
+    document.head.appendChild(style)
+  }
+  // A hot reload or upgrade swaps the module but not the DOM: refresh the sheet
+  // rather than leaving the previous build's CSS in place.
+  if (style.textContent !== STYLES) style.textContent = STYLES
+  // Count users on the element itself so two live instances (or two copies of
+  // this module) cannot remove the sheet out from under each other.
+  style.dataset.bcUsers = String(Number(style.dataset.bcUsers ?? '0') + 1)
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    const left = Math.max(Number(style.dataset.bcUsers ?? '1') - 1, 0)
+    if (left > 0) {
+      style.dataset.bcUsers = String(left)
+      return
+    }
+    style.remove()
+  }
 }
 
 /** Build the `bc-ask` bridge over the remote commands namespace. */
@@ -74,13 +99,13 @@ function createSideAskService(remote: SideAskRemote): SideAskService {
       // submittedAttachments, signal) — the agent id is the conversation target.
       const response = await remote.commands.execute(sessionId, line, [], signal)
       if (!response.ok) {
-        throw new Error(response.error?.message ?? 'side question failed')
+        throw new Error(response.error?.message ?? '旁问调用失败')
       }
       const result = response.value?.result
       const kind = typeof result?.kind === 'string' ? result.kind : 'error'
       const text = typeof result?.text === 'string' ? result.text : ''
       if (kind === 'success' || kind === 'text') return { kind: 'text', text }
-      throw new Error(text !== '' ? text : 'side question failed')
+      throw new Error(text !== '' ? text : '旁问没有返回文字回答')
     },
   }
 }
@@ -98,7 +123,11 @@ export function apply(ctx: ClientContext): void {
   if (remote !== undefined && remote !== null) {
     const service = createSideAskService(remote)
     setSideAskService(service)
-    ctx.effect(() => () => setSideAskService(null), 'dsh-better-choice: side-ask bridge')
+    // Release only the bridge this instance installed: a reload mounts the new
+    // instance first, and clearing unconditionally would break its side asks.
+    ctx.effect(() => () => {
+      if (getSideAskService() === service) setSideAskService(null)
+    }, 'dsh-better-choice: side-ask bridge')
   }
 
   const draftStore = createQuestionNoteDraftStore()

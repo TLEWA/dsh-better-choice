@@ -1,15 +1,14 @@
 import {
-  Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore,
-  type ChangeEvent, type FocusEvent, type KeyboardEvent,
+  Fragment, memo, useEffect, useMemo, useRef, useState, useSyncExternalStore,
+  type ChangeEvent, type ComponentProps, type FocusEvent, type KeyboardEvent,
 } from 'react'
 import {
   Button, IconCheckOutlineRegular, IconChevronDownOutlineRegular, IconChevronLeftOutlineRegular,
   IconChevronRightOutlineRegular, IconChevronUpOutlineRegular, IconCloseOutlineRegular,
   IconEditOutlineRegular, MarkdownText,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type {
-  QuestionNoteAnswer, QuestionNoteCarrier, QuestionNoteItem,
-} from './carrier.ts'
+import { hasAnswer, mergeAnswers } from './answer.ts'
+import type { QuestionNoteCarrier, QuestionNoteItem } from './carrier.ts'
 import type {
   QuestionNoteDraftAnswer, QuestionNoteDraftBakedActions, QuestionNoteDraftState,
 } from './draft-store.ts'
@@ -134,8 +133,8 @@ function sessionIdOf(
 
 /** The free-text field: the optionless question's framed block or a row's inline column. */
 interface AnswerFieldProps {
-  /** Visual variant: a row's inline column or the optionless question's framed block. */
-  variant: 'inline' | 'block'
+  /** Visual variant: a row's inline column, the optionless question's framed block, or the side-ask box. */
+  variant: 'inline' | 'block' | 'side'
   /** Current draft text. */
   value: string
   /** Empty-field prompt. */
@@ -164,7 +163,10 @@ interface AnswerFieldProps {
  */
 function AnswerField(props: AnswerFieldProps) {
   return (
-    <div className={cls(cx.field, props.variant === 'inline' ? cx.customInline : cx.customBlock)}>
+    <div className={cls(
+      cx.field,
+      props.variant === 'side' ? cx.sideField : props.variant === 'inline' ? cx.customInline : cx.customBlock,
+    )}>
       <div aria-hidden className={cx.fieldMirror}>{`${props.value}\n`}</div>
       <textarea
         autoFocus={props.autoFocus}
@@ -181,6 +183,15 @@ function AnswerField(props: AnswerFieldProps) {
     </div>
   )
 }
+
+/**
+ * Markdown that skips re-parsing while its text is unchanged. Every keystroke
+ * re-renders the whole card, and the question detail plus each side-answer turn
+ * would otherwise be parsed again on every character typed into any field.
+ */
+const Markdown = memo(function Markdown(props: ComponentProps<typeof MarkdownText>) {
+  return <MarkdownText {...props} />
+})
 
 /** Locale lookup the renderer passes to the component. */
 type QuestionNoteT = (key: QuestionNoteKey, vars?: Record<string, string | number>) => string
@@ -255,14 +266,18 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
   // behind can never surface as an answer; only the page position is restored.
   const storedProgress = review === undefined ? validStored : undefined
   const index = validStored?.index ?? 0
-  const drafts = (storedProgress?.drafts ?? initialDrafts)
-    .map(item => ({ ...item, notes: item.notes ?? {} }))
-  const restoredWait = storedProgress?.wait
+  // Derived from the store snapshot, so every restart of this component would
+  // otherwise rebuild the array (and re-render every option) on each keystroke.
+  const drafts = useMemo(() => (storedProgress?.drafts ?? initialDrafts)
+    .map(item => ({ ...item, notes: item.notes ?? {} })), [initialDrafts, storedProgress])
+  // Whether the restored draft already carries edits decides the countdown
+  // disposition once on mount; recomputing it per render is wasted work.
+  const restoredWait = useMemo(() => storedProgress?.wait
     ?? (storedProgress?.drafts.some((item, itemIndex) =>
       item.selected.length !== initialDrafts[itemIndex]?.selected.length
       || item.selected.some((label, labelIndex) => label !== initialDrafts[itemIndex]?.selected[labelIndex])
       || Object.values(item.notes ?? {}).some(note => note !== '') || item.custom !== '' || item.skipped) === true
-      ? 'editing' : undefined)
+      ? 'editing' : undefined), [initialDrafts, storedProgress])
   const [busy, setBusy] = useState<'answer' | 'cancel' | null>(null)
   const [error, setError] = useState<Feedback | null>(null)
   // The carrier owns the card lifecycle; subscribe directly (same data the
@@ -547,10 +562,7 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
     })
   }
 
-  const answered = (item: QuestionNoteDraftAnswer): boolean =>
-    item.selected.length > 0 || item.custom.trim() !== ''
-
-  const completed = (item: QuestionNoteDraftAnswer): boolean => answered(item) || item.skipped
+  const completed = (item: QuestionNoteDraftAnswer): boolean => hasAnswer(item) || item.skipped
 
   const submitDrafts = (values: QuestionNoteDraftAnswer[]): void => {
     const missing = values.findIndex(item => !completed(item))
@@ -563,44 +575,10 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
       setError({ key: 'error.unavailable' })
       return
     }
-    // The selection travels with the per-option notes. `custom` carries them —
-    // a single-select note plain, a multi-select note labelled `option: note`
-    // per line so the model can attribute each note to its option — and a
-    // bottom-row answer joins last. Notes typed under an option that was later
-    // deselected are marked `(未选)` instead of being silently dropped.
-    const answer: QuestionNoteAnswer = {
-      answers: questions.map((item, itemIndex) => {
-        const value = values[itemIndex] as QuestionNoteDraftAnswer
-        if (value.skipped) return { id: item.id, selected: [] }
-        const custom = value.custom.trim()
-        const parts: string[] = []
-        if (item.multiSelect === true) {
-          for (const label of value.selected) {
-            const note = (value.notes[label] ?? '').trim()
-            if (note !== '') parts.push(`${label}: ${note}`)
-          }
-        } else {
-          const note = (value.notes[value.selected[0] ?? ''] ?? '').trim()
-          if (note !== '') parts.push(note)
-        }
-        for (const [label, rawNote] of Object.entries(value.notes)) {
-          const note = rawNote.trim()
-          if (note === '' || value.selected.includes(label)) continue
-          parts.push(`(未选) ${label}: ${note}`)
-        }
-        if (custom !== '') parts.push(custom)
-        const text = parts.join('\n')
-        // Official semantics: a single-select custom answer replaces the
-        // selection. A right-click note can leave both in the draft, so the
-        // selection must be dropped here rather than trusted upstream.
-        const keepSelection = item.multiSelect === true || custom === ''
-        return {
-          id: item.id,
-          selected: keepSelection ? value.selected : [],
-          ...(text === '' ? {} : { custom: text }),
-        }
-      }),
-    }
+    // The wire shape lives in `mergeAnswers`: every note keeps its option label,
+    // a note under a deselected option is marked `(未选)`, and a single-select
+    // custom answer drops the selection (official semantics).
+    const answer = mergeAnswers(values, questions)
     setBusy('answer')
     setError(null)
     // The external-store render can lag the carrier as a timed call continues.
@@ -623,7 +601,7 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
   }
 
   const continueFlow = (): void => {
-    if (!answered(draft)) {
+    if (!hasAnswer(draft)) {
       setError({ key: 'error.unanswered' })
       return
     }
@@ -832,7 +810,7 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
               onBlurCapture={blurAnswerSurface}
             >
               {question.detail !== undefined && (
-                <div className={cx.detail}><MarkdownText text={question.detail} labels={markdownLabels} /></div>
+                <div className={cx.detail}><Markdown text={question.detail} labels={markdownLabels} /></div>
               )}
               <div className={cx.options} role={question.multiSelect === true ? 'group' : 'radiogroup'}>
                 {(question.options ?? []).map((option, optionIndex) => {
@@ -999,7 +977,7 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
                             : (
                               <div className={cx.answerBubble}>
                                 <div className={cx.answerLabel}>{t('side.answer')}</div>
-                                <MarkdownText text={turn.answer ?? ''} labels={markdownLabels} />
+                                <Markdown text={turn.answer ?? ''} labels={markdownLabels} />
                               </div>
                             )}
                       </div>
@@ -1008,13 +986,12 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
                 )}
                 {sideError !== null && <div className={cx.sideError}>{sideError}</div>}
                 <div className={cx.sideInputRow}>
-                  <textarea
-                    className={cx.sideTextarea}
-                    rows={1}
+                  <AnswerField
+                    variant="side"
                     value={sideInput}
                     disabled={sideBusy || locked}
                     placeholder={t('side.placeholder')}
-                    aria-label={t('side.title')}
+                    ariaLabel={t('side.title')}
                     onChange={(event) => { setSideInput(event.target.value); setSideErrorFor(threadKey, null) }}
                     onKeyDown={sideKeyDown}
                   />
@@ -1063,7 +1040,7 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
                   </Button>
                   <Button
                     variant="primary"
-                    disabled={busy !== null || !answered(draft) || (isLastQuestion && !canSubmit)}
+                    disabled={busy !== null || !hasAnswer(draft) || (isLastQuestion && !canSubmit)}
                     onClick={continueFlow}
                   >
                     {busy === 'answer'

@@ -187,34 +187,34 @@ const extra = `
   gap: 8px;
 }
 
-.sideTextarea {
+/* The side box grows with its text exactly like an answer field: the hidden
+   mirror owns the height, so the box caps at six short lines instead of
+   staying one row tall while the text overflows. */
+.sideField {
   flex: 1;
   min-width: 0;
   min-height: 36px;
-  max-height: 120px;
-  resize: none;
-  box-sizing: border-box;
-  padding: 7px 10px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: var(--dsw-radius-md);
-  outline: none;
   background: var(--dsw-alias-bg-module-platform);
-  color: var(--dsw-alias-label-primary);
-  caret-color: var(--dsw-alias-state-business-primary);
-  font: inherit;
+  --dsh-answer-field-padding: 7px 10px;
+}
+
+/* Mirror and textarea MUST share type and padding with the box above. */
+.sideField > * {
   font-size: 13px;
   line-height: 20px;
 }
 
-.sideTextarea::placeholder {
-  color: var(--dsw-alias-label-caption);
+.sideField .fieldMirror {
+  max-height: 120px;
 }
 
-.sideTextarea:focus {
+.sideField:focus-within {
   border-color: var(--dsw-alias-state-business-primary);
 }
 
-.sideTextarea:disabled {
+.sideField .fieldInput:disabled {
   color: var(--dsw-alias-label-dimmed);
 }
 
@@ -222,13 +222,6 @@ const extra = `
   color: var(--dsw-alias-state-error-primary);
   font-size: 11px;
   line-height: 16px;
-}
-
-.sideActions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
 }
 `
 
