@@ -241,6 +241,16 @@ manifest 的 `engines.dsh` 声明为 `>=0.2.0-rc.1 <0.3.0-0`，peer 依赖声明
 - 旁问回答目前是完成后整段出现，不是逐字流式显示；超长回答受 32K 输出上限约束。
 - 没有右键输入的设备无法使用补充框，但左键作答完全不受影响。
 
+## 我的其他 DSH 项目
+
+问题卡片只是 DSH 的一小块。下面这些插件也都由我维护，按需取用。
+
+- **[dsh-sidebar-row-menu](https://github.com/TLEWA/dsh-sidebar-row-menu)** —— 侧栏行的右键菜单：工作区菜单与原生会话菜单扩展，带「打开方式」二级菜单、置顶应用、逐项菜单位置与已归档会话清理。
+- **[dsh-sidebar-organizer](https://github.com/TLEWA/dsh-sidebar-organizer)** —— 七区域布局整理器：侧栏、侧栏底部、对话标签、输入框、会话头部、右侧栏、设置导航都能长按拖拽排序，面板可以收进「更多」再拖回来。
+- **[dsh-if](https://github.com/TLEWA/dsh-if)** —— `/if` 命令：让模型结合上文判断条件，成立才把下面的指令作为用户消息发出。
+- **[dsh-utf8-output](https://github.com/TLEWA/dsh-utf8-output)** —— 修复 Windows 下 DSH 子进程 GBK/CP936/CP932 输出乱码。
+- **[dsh-opencode-go-router](https://github.com/TLEWA/dsh-opencode-go-router)** —— 上下文折叠或系统提示被重写后轮换 OpenCode Go 路由，少丢一点提示缓存。
+
 ## 许可与来源
 
 本项目以 [MIT](LICENSE) 发布。问题卡的组件结构与样式派生自

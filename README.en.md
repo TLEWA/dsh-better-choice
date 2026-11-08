@@ -264,6 +264,16 @@ declared as `^0.2.0-rc.1`, and it is verified on a real
   answers are capped at 32K output tokens.
 - Devices without right-click cannot use notes, but left-click answering is unaffected.
 
+## Other DSH projects I work on
+
+Question cards are only one corner of DSH. These are the other plugins I maintain — take what fits.
+
+- **[dsh-sidebar-row-menu](https://github.com/TLEWA/dsh-sidebar-row-menu)** — right-click menus for sidebar rows: workspace menu and native session menu extensions, with open-with submenus, pinned apps, per-item menu placement, and archived-session cleanup.
+- **[dsh-sidebar-organizer](https://github.com/TLEWA/dsh-sidebar-organizer)** — a layout organizer for seven regions: sidebar, sidebar footer, conversation tabs, composer, session header, right panel, and settings navigation all support long-press drag to reorder, and panels can be tucked into "More".
+- **[dsh-if](https://github.com/TLEWA/dsh-if)** — the `/if` command: let the model judge a condition from prior context, then send the instruction below it as a user message only when it holds.
+- **[dsh-utf8-output](https://github.com/TLEWA/dsh-utf8-output)** — fixes GBK/CP936/CP932 mojibake from DSH subprocess output on Windows.
+- **[dsh-opencode-go-router](https://github.com/TLEWA/dsh-opencode-go-router)** — rotates OpenCode Go routing after a context fold or a system-prompt rewrite, so less of the prompt cache is lost.
+
 ## License and attribution
 
 Released under [MIT](LICENSE). The question-card component structure and styles are
