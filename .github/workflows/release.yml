@@ -15,4 +15,6 @@ concurrency:
 jobs:
   release:
     uses: TLEWA/dsh-plugin-ci/.github/workflows/reusable-release.yml@v1
+    with:
+      use-token: true
     secrets: inherit
