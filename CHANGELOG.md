@@ -5,6 +5,17 @@
 
 [简体中文](CHANGELOG.md) · [English](CHANGELOG.en.md)
 
+## [1.0.6] - 2026-11-09
+
+### 变更
+
+- 仓库接入 `TLEWA/dsh-plugin-ci` 的统一 CI gate 与发布流程；PR 合并前只认 `ci / ci-ok` 这一个必需检查。
+- npm 发布改由 release workflow 内的 `NPM_TOKEN` fallback 完成；没有运行时、API 或用户可见行为变更。
+
+### 兼容
+
+- DSH 兼容范围与 1.0.5 相同（`0.2.x`）；已在 CI 的 Ubuntu/Windows × Node 20/22/24 矩阵验证。
+
 ## [1.0.5] - 2026-11-06
 
 ### 修复

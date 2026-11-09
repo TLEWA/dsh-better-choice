@@ -5,6 +5,17 @@ All notable changes are documented here. This project follows
 
 [简体中文](CHANGELOG.md) · [English](CHANGELOG.en.md)
 
+## [1.0.6] - 2026-11-09
+
+### Changed
+
+- Adopted the shared `TLEWA/dsh-plugin-ci` gate and release workflow; `ci / ci-ok` is now the only required check before merge.
+- npm releases now use the `NPM_TOKEN` fallback inside the release workflow. No runtime, API, or user-visible behavior changes.
+
+### Compatibility
+
+- Same DSH compatibility range as 1.0.5 (`0.2.x`); verified by the CI Ubuntu/Windows × Node 20/22/24 matrix.
+
 ## [1.0.5] - 2026-11-06
 
 ### Fixed
