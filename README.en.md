@@ -230,10 +230,10 @@ test/package.test.mjs        Package metadata, artifacts, manifest checks
 
 ```powershell
 npm install
-npm run build     # lib/index.js and lib/client.js
-npm run check     # syntax check on the artifacts
+npm run build
+npm run check
 npm test          # node:test
-npm pack          # installable .tgz
+npm pack
 ```
 
 `prepack` rebuilds, checks, and tests before packing. The client artifact is CJS inside
