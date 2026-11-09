@@ -94,7 +94,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --test test/answer.test.mjs test/package.test.mjs",
     "prepack": "npm run build && npm run check && npm run typecheck && npm test",
-    "prepublishOnly": "npm run build && npm run check && npm run typecheck && npm test"
+    "prepublishOnly": "npx --yes --package=github:TLEWA/dsh-plugin-ci#v1 dsh-ci-gate --prepublish"
   },
   "publishConfig": {
     "access": "public",

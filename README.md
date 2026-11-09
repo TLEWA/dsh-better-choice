@@ -211,10 +211,10 @@ test/package.test.mjs        包元数据、产物与清单校验
 
 ```powershell
 npm install
-npm run build     # 产出 lib/index.js 与 lib/client.js
-npm run check     # 产物语法检查
+npm run build
+npm run check
 npm test          # node:test
-npm pack          # 生成可安装的 .tgz
+npm pack
 ```
 
 `npm pack` 的 `prepack` 会重新构建、检查并跑测试。客户端产物是带
