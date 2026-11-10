@@ -32,7 +32,7 @@ official composer.
 | Notes on unselected options | In multi-select, a note on an unchecked option is marked `(unselected)` so the model can tell |
 | Side ask with context | A fork child reuses the current session's completed context, model, and tool declarations |
 | No interruption | Per-question threads, multiple follow-ups; focusing the side box pauses the card countdown and blur resumes it; sending switches the card to "waits for you" |
-| Cancellable | A "Cancel side ask" button appears while the answer runs; the thread keeps a cancelled marker so you can rephrase |
+| Cancellable | A "Cancel side ask" button appears while the answer runs; the thread keeps a cancelled marker so you can rephrase; cancelling or the 30-minute timeout stops and releases the fork child |
 | Read-only | A runtime guard denies every tool call; it never resumes the task or chooses; capped at 32K output tokens (not above the parent limit) |
 | Official behavior kept | Left-click, free-form row, skip, paging, countdown, post-timeout continuation, and settled-answer review are untouched |
 

@@ -7,7 +7,7 @@ import {
   IconChevronRightOutlineRegular, IconChevronUpOutlineRegular, IconCloseOutlineRegular,
   IconEditOutlineRegular, MarkdownText,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import { hasAnswer, mergeAnswers } from './answer.ts'
+import { hasAnswer, mergeAnswers, noteOf, parseRecommendedLabel, recommendedOptions } from './answer.ts'
 import type { QuestionNoteCarrier, QuestionNoteItem } from './carrier.ts'
 import type {
   QuestionNoteDraftAnswer, QuestionNoteDraftBakedActions, QuestionNoteDraftState,
@@ -56,24 +56,6 @@ const REMOVED_CARD = {
 /** Join truthy class names without pulling in a runtime dependency. */
 function cls(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(' ')
-}
-
-/**
- * Split the conventional recommendation suffix without changing the answer value.
- * @param label - Original option label returned if selected.
- * @returns Display label plus recommendation state.
- */
-function parseRecommendedLabel(label: string): { label: string; recommended: boolean } {
-  const suffix = /\s*(?:\((?:recommended|推荐)\)|（(?:recommended|推荐)）)\s*$/i
-  return suffix.test(label)
-    ? { label: label.replace(suffix, ''), recommended: true }
-    : { label, recommended: false }
-}
-
-/** Only a marked first choice is an implicit draft; the user still submits it. */
-function recommendedFirstOption(question: QuestionNoteItem): string | undefined {
-  const label = question.options?.[0]?.label
-  return label !== undefined && parseRecommendedLabel(label).recommended ? label : undefined
 }
 
 /** Accept persisted progress only when it still describes this question batch. */
@@ -250,9 +232,9 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
     return questions.map((item) => {
       const answer = recorded.get(item.id)
       const custom = answer?.custom ?? ''
-      const recommended = review === undefined ? recommendedFirstOption(item) : undefined
+      const recommended = review === undefined ? recommendedOptions(item) : []
       return {
-        selected: answer === undefined && recommended !== undefined ? [recommended] : [...answer?.selected ?? []],
+        selected: answer === undefined ? recommended : [...answer?.selected ?? []],
         notes: {},
         custom,
         // A recorded answer with no selection and no custom text was skipped.
@@ -816,7 +798,7 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
                 {(question.options ?? []).map((option, optionIndex) => {
                   const selected = draft.selected.includes(option.label)
                   const display = parseRecommendedLabel(option.label)
-                  const note = draft.notes[option.label] ?? ''
+                  const note = noteOf(draft.notes, option.label)
                   // The note input is opened by right-click, not by selection.
                   const supplementHere = review === undefined && !locked && openNotes.has(option.label)
                   // The button paints only the label line; keep the description,

@@ -5,6 +5,19 @@ All notable changes are documented here. This project follows
 
 [简体中文](CHANGELOG.md) · [English](CHANGELOG.en.md)
 
+## [Unreleased]
+
+### Fixed
+
+- Cancelling a side ask or hitting its 30-minute timeout now also stops and releases the published fork child; a result delivered before the cancellation is not overwritten, and the tool guard is lifted only after the child winds down.
+- When `startActivation` throws after the child materialized, the reserved childId is released through the host's `drainChildren` instead of staying owned forever.
+- Option notes are read from own properties only: labels such as `constructor` or `__proto__` no longer throw or surface prototype functions as notes.
+- Multi-select questions now preselect every option carrying a recommendation marker, matching the official composer; single-select still preselects only the first.
+
+### Compatibility
+
+- Same DSH compatibility range (`0.2.x`); fold `[Unreleased]` into the next version at release time.
+
 ## [1.0.6] - 2026-11-09
 
 ### Changed

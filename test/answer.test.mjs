@@ -24,7 +24,7 @@ async function loadAnswer() {
   return import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`)
 }
 
-const { hasAnswer, mergeAnswer, mergeAnswers } = await loadAnswer()
+const { hasAnswer, mergeAnswer, mergeAnswers, recommendedOptions } = await loadAnswer()
 
 const single = { id: 'q1', question: 'Pick one', options: [{ label: 'A' }, { label: 'B' }] }
 const multi = { id: 'q2', question: 'Pick many', multiSelect: true, options: [{ label: 'A' }, { label: 'B' }] }
@@ -83,4 +83,40 @@ test('mergeAnswers keeps the request order and ids', () => {
     { id: 'q1', selected: ['A'] },
     { id: 'q2', selected: [], custom: 'x' },
   ])
+})
+
+test('option labels that collide with Object.prototype keys stay plain notes', () => {
+  const proto = {
+    id: 'q-proto',
+    question: 'Pick a key',
+    options: [{ label: 'constructor' }, { label: 'toString' }],
+  }
+  assert.equal(hasAnswer(draft({ selected: ['constructor'] })), true)
+  // Reading the prototype key on a plain object used to return the prototype
+  // function, and the trim() in mergeAnswer threw.
+  assert.deepEqual(mergeAnswer(draft({ selected: ['constructor'] }), proto), {
+    id: 'q-proto',
+    selected: ['constructor'],
+  })
+  assert.equal(
+    mergeAnswer(draft({ selected: ['constructor'], notes: JSON.parse('{"constructor": "own"}') }), proto).custom,
+    'constructor: own',
+  )
+  assert.equal(
+    mergeAnswer(draft({ notes: JSON.parse('{"__proto__": "proto note"}') }), proto).custom,
+    '(未选) __proto__: proto note',
+  )
+})
+
+test('recommended markers preselect every marked option only for multi-select', () => {
+  const marked = {
+    id: 'q-rec',
+    question: 'Pick',
+    multiSelect: true,
+    options: [{ label: 'A (recommended)' }, { label: 'B（推荐）' }, { label: 'C' }],
+  }
+  assert.deepEqual(recommendedOptions(marked), ['A (recommended)', 'B（推荐）'])
+  assert.deepEqual(recommendedOptions({ ...marked, multiSelect: false }), ['A (recommended)'])
+  assert.deepEqual(recommendedOptions({ id: 'q', question: 'Pick', options: [{ label: 'A' }] }), [])
+  assert.deepEqual(recommendedOptions({ id: 'q', question: 'Pick' }), [])
 })

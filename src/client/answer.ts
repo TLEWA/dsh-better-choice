@@ -22,6 +22,44 @@ export function hasAnswer(draft: QuestionNoteDraftAnswer): boolean {
 }
 
 /**
+ * Split the conventional recommendation suffix without changing the answer
+ * value. The label keeps its marker so the submitted selection stays exactly
+ * the option text the official composer uses.
+ * @param label - original option label.
+ * @returns display label plus recommendation state.
+ */
+export function parseRecommendedLabel(label: string): { label: string; recommended: boolean } {
+  const suffix = /\s*(?:\((?:recommended|推荐)\)|（(?:recommended|推荐)）)\s*$/i
+  return suffix.test(label)
+    ? { label: label.replace(suffix, ''), recommended: true }
+    : { label, recommended: false }
+}
+
+/**
+ * Labels the official composer preselects: every marked option in a
+ * multi-select question, but only a marked first option in single-select.
+ * @param question - the question to inspect.
+ * @returns labels to preselect, in option order.
+ */
+export function recommendedOptions(question: QuestionNoteItem): string[] {
+  const labels = (question.options ?? []).map(option => option.label)
+  return (question.multiSelect === true ? labels : labels.slice(0, 1))
+    .filter(label => parseRecommendedLabel(label).recommended)
+}
+
+/**
+ * Read one option's note without consulting `Object.prototype`. Option labels
+ * are arbitrary user text, so a label such as `constructor` or `__proto__` must
+ * not resolve to an inherited value.
+ * @param notes - the question's per-label notes.
+ * @param label - the option label to read.
+ * @returns the note, or an empty string when the label has no own note.
+ */
+export function noteOf(notes: Record<string, string>, label: string): string {
+  return Object.hasOwn(notes, label) ? notes[label] ?? '' : ''
+}
+
+/**
  * Shape one draft into its wire answer. A note always carries its option label
  * so the model can attribute it — including a single-select note, where the
  * label is the only thing tying the text to its option once a bottom free-text
@@ -46,7 +84,7 @@ export function mergeAnswer(
     const prefix = label === '' ? '' : `${label}: `
     parts.push(`${selected ? '' : '(未选) '}${prefix}${note}`)
   }
-  for (const label of value.selected) push(label, (value.notes[label] ?? '').trim(), keepSelection)
+  for (const label of value.selected) push(label, noteOf(value.notes, label).trim(), keepSelection)
   for (const [label, rawNote] of Object.entries(value.notes)) {
     if (value.selected.includes(label)) continue
     push(label, rawNote.trim(), false)
