@@ -7,6 +7,8 @@ All notable changes are documented here. This project follows
 
 ## [Unreleased]
 
+- Adopt shared Codex PR review rules and repository-specific review guidance; preserve existing CI, human approval, and release behavior.
+
 ### Fixed
 
 - Cancelling a side ask or hitting its 30-minute timeout now also stops and releases the published fork child; a result delivered before the cancellation is not overwritten, and the tool guard is lifted only after the child winds down.
