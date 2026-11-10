@@ -1,6 +1,6 @@
 {
   "name": "dsh-better-choice",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "type": "module",
   "description": "DSH ask_user_question enhancement: right-click an option to add a note, and ask the model a side question before choosing — with the session's own context and cache-friendly prefix.",
   "keywords": [

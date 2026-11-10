@@ -5,7 +5,7 @@
 
 [简体中文](CHANGELOG.md) · [English](CHANGELOG.en.md)
 
-## [Unreleased]
+## [1.1.0] - 2026-11-11
 
 - 接入 Codex PR 公共审阅规则与本仓重点，保留现有 CI、人工批准和发布行为。
 
