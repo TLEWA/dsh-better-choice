@@ -265,3 +265,7 @@ AI 参与范围与验证边界见 [AI_USAGE.md](AI_USAGE.md)。
 DSH 本身及其内置包的版权归 DeepSeek 所有，不因本项目的 MIT 许可而改变。
 
 版本变更见 [更新日志](CHANGELOG.md)（[English](CHANGELOG.en.md)）。
+
+## Codex PR 审阅
+
+本仓采用[中心 CI](https://github.com/TLEWA/dsh-plugin-ci)的 v1 公共审阅规则，实际规则保存在 AGENTS.md。云端 Codex 审阅 PR 及新提交，维护者最终批准并合并；审阅结论必须对应最新提交。审阅消耗订阅用量，漏触发时可用 `@codex review` 补审。
