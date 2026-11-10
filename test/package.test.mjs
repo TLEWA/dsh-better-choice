@@ -37,9 +37,10 @@ function makeAgent(overrides = {}) {
   return { agent, derived: () => derived }
 }
 
-function makeHarness(result = { stopReason: 'completed', output: [{ type: 'text', text: 'Use option B.' }] }, { defer = false, failStart = false } = {}) {
+function makeHarness(result = { stopReason: 'completed', output: [{ type: 'text', text: 'Use option B.' }] }, { defer = false, failStart = false, drain = false } = {}) {
   const activations = []
   const disposals = []
+  const drainCalls = []
   let registered
   let guardFn
   let effectCleanup
@@ -79,12 +80,20 @@ function makeHarness(result = { stopReason: 'completed', output: [{ type: 'text'
           },
         }
       },
+      ...(drain
+        ? {
+            async drainChildren(parent, childIds) {
+              drainCalls.push({ parent, childIds: [...childIds] })
+            },
+          }
+        : {}),
     },
   }
   return {
     ctx,
     activations,
     disposals,
+    drainCalls,
     started,
     resolve(value = result) { resolveResult?.(value) },
     get registered() { return registered },
@@ -92,6 +101,8 @@ function makeHarness(result = { stopReason: 'completed', output: [{ type: 'text'
     get effectCleanup() { return effectCleanup },
   }
 }
+
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 const payload = {
   question: 'Which option keeps the old endpoint?',
@@ -430,4 +441,100 @@ test('bc-ask rejects malformed and empty requests', async () => {
   })
   assert.equal(noAgent.kind, 'error')
   assert.equal(harness.activations.length, 0)
+})
+
+test('bc-ask stops waiting and releases the child when the invocation is cancelled', async () => {
+  const host = await loadHost()
+  const harness = makeHarness(undefined, { defer: true })
+  const { agent } = makeAgent()
+  host.apply(harness.ctx)
+  const controller = new AbortController()
+
+  const pending = harness.registered.handler({
+    agent,
+    rawInput: JSON.stringify({ question: 'why?' }),
+    signal: controller.signal,
+  })
+  await harness.started
+  const childId = harness.activations[0].childId
+  assert.match(harness.guardFn({ agent: { id: childId } }), /禁止执行任何工具/)
+
+  controller.abort()
+  const response = await Promise.race([pending, delay(500).then(() => 'timeout')])
+  assert.notEqual(response, 'timeout', 'the handler must stop waiting once the invocation aborts')
+  assert.equal(response.kind, 'error')
+  assert.match(response.text, /取消/)
+  assert.deepEqual(harness.disposals, [childId])
+  assert.equal(harness.guardFn({ agent: { id: childId } }), undefined)
+})
+
+test('bc-ask keeps a completed answer when cancellation arrives before it is consumed', async () => {
+  const host = await loadHost()
+  const harness = makeHarness(undefined, { defer: true })
+  const { agent } = makeAgent()
+  host.apply(harness.ctx)
+  const controller = new AbortController()
+
+  const pending = harness.registered.handler({
+    agent,
+    rawInput: JSON.stringify({ question: 'why?' }),
+    signal: controller.signal,
+  })
+  await harness.started
+  harness.resolve()
+  controller.abort()
+
+  const response = await pending
+  assert.equal(response.kind, 'success')
+  assert.equal(response.text, 'Use option B.')
+  assert.deepEqual(harness.disposals, [harness.activations[0].childId])
+})
+
+test('bc-ask releases a child that materialized before startActivation threw', async () => {
+  const host = await loadHost()
+  const harness = makeHarness(undefined, { failStart: true, drain: true })
+  const { agent } = makeAgent()
+  host.apply(harness.ctx)
+
+  const response = await harness.registered.handler({
+    agent,
+    rawInput: JSON.stringify({ question: 'why?' }),
+    signal: new AbortController().signal,
+  })
+
+  assert.equal(response.kind, 'error')
+  assert.match(response.text, /旁问失败/)
+  const childId = harness.activations[0].childId
+  // No activation handle came back, so dispose cannot reach the child; the
+  // service-level drain must release the reserved child id instead.
+  assert.deepEqual(harness.disposals, [])
+  assert.equal(harness.drainCalls.length, 1)
+  assert.equal(harness.drainCalls[0].parent, agent)
+  assert.deepEqual(harness.drainCalls[0].childIds, [childId])
+  assert.equal(harness.guardFn({ agent: { id: childId } }), undefined)
+})
+
+test('bc-ask never reads notes through Object.prototype', async () => {
+  const host = await loadHost()
+  const harness = makeHarness()
+  const { agent } = makeAgent()
+  host.apply(harness.ctx)
+
+  await harness.registered.handler({
+    agent,
+    rawInput: JSON.stringify({
+      question: 'which one?',
+      questions: [{
+        title: 'Prototype keys',
+        options: [{ label: 'constructor' }, { label: 'toString' }],
+        selected: ['constructor'],
+      }],
+    }),
+    signal: new AbortController().signal,
+  })
+
+  const prompt = harness.activations[0].request.prompt[0].text
+  assert.match(prompt, /\[已选\] constructor/)
+  assert.doesNotMatch(prompt, /native code/)
+  assert.doesNotMatch(prompt, /备注/)
 })

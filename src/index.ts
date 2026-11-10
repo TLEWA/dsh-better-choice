@@ -120,6 +120,8 @@ interface HostContext {
   subagents: {
     getProvider(name: string): SubagentProvider | undefined
     startActivation?(spec: StartActivationSpec): Promise<Activation>
+    /** Release reserved child ids whose start failed without an activation handle. */
+    drainChildren?(parent: AgentLike, childIds: readonly string[]): Promise<void>
   }
   tools: {
     guard(
@@ -184,8 +186,10 @@ function optionsOf(value: unknown): { label: string; description?: string }[] {
 
 /** Keep only string-to-string notes. */
 function notesOf(value: unknown): Record<string, string> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return {}
-  const notes: Record<string, string> = {}
+  // Labels are arbitrary user text; a null-prototype map keeps lookups such as
+  // `notes['constructor']` from resolving through Object.prototype.
+  const notes: Record<string, string> = Object.create(null) as Record<string, string>
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return notes
   for (const [label, note] of Object.entries(value)) {
     const text = textOf(note)
     if (text !== '') notes[label] = text
@@ -323,6 +327,48 @@ function fail(text: string): { kind: 'error'; text: string } {
 }
 
 /**
+ * Wait for an activation result unless the signal aborts first.
+ * An already-settled result keeps precedence over a cancellation that raced it;
+ * cancelling calls `release` once and resolves `undefined`.
+ */
+function waitUnlessAborted<T>(
+  result: Promise<T>,
+  signal: AbortSignal,
+  release: () => void,
+): Promise<T | undefined> {
+  return new Promise<T | undefined>((resolve, reject) => {
+    let settled = false
+    const finish = (): void => {
+      settled = true
+      signal.removeEventListener('abort', stop)
+    }
+    const stop = (): void => {
+      // Defer one microtask so a result that already resolved wins the race.
+      queueMicrotask(() => {
+        if (settled) return
+        finish()
+        release()
+        resolve(undefined)
+      })
+    }
+    result.then(
+      value => {
+        if (settled) return
+        finish()
+        resolve(value)
+      },
+      error => {
+        if (settled) return
+        finish()
+        reject(error)
+      },
+    )
+    if (signal.aborted) stop()
+    else signal.addEventListener('abort', stop, { once: true })
+  })
+}
+
+/**
  * Answer one side question with a fork child.
  * @param ctx - host context.
  * @param invocation - command invocation carrying the parent agent and signal.
@@ -364,6 +410,20 @@ async function handleSideAsk(
   const signal = AbortSignal.any([invocation.signal, timeout])
   let activation: Activation | undefined
   let started = false
+  // Disposal is idempotent upstream, but only ask once so a cancellation and
+  // the finally block cannot race two live handles.
+  let disposing: Promise<void> | undefined
+  const disposeChild = (): Promise<void> => {
+    disposing ??= Promise.resolve(activation?.dispose()).then(() => undefined).catch(() => undefined)
+    return disposing
+  }
+  const releaseOwnership = (): void => {
+    ownedIds.delete(childId)
+    if (childAgent !== undefined) {
+      ownedObjects.delete(childAgent)
+      if (childAgent.session !== undefined) ownedObjects.delete(childAgent.session)
+    }
+  }
   try {
     activation = await ctx.subagents.startActivation({
       provider: 'fork',
@@ -381,7 +441,11 @@ async function handleSideAsk(
       delivery: 'caller',
     })
     started = true
-    const result = await activation.result
+    const result = await waitUnlessAborted(activation.result, signal, () => {
+      // Stop the fork child when the caller gives up waiting.
+      void disposeChild()
+    })
+    if (result === undefined) return fail('旁问已取消。')
     if (result.stopReason === 'aborted') return fail('旁问已取消。')
     const text = sanitizeAnswer(result.output
       .filter(block => block.type === 'text')
@@ -402,20 +466,24 @@ async function handleSideAsk(
   } finally {
     stopCreated?.()
     if (started) {
-      ownedIds.delete(childId)
-      if (childAgent !== undefined) {
-        ownedObjects.delete(childAgent)
-        if (childAgent.session !== undefined) ownedObjects.delete(childAgent.session)
+      // Awaiting disposal here releases the child id and the per-child guard
+      // even when the result resolved normally or the wait was cancelled. Keep
+      // the child guarded until the wind-down finishes.
+      await disposeChild()
+      releaseOwnership()
+    } else if (typeof ctx.subagents.drainChildren === 'function') {
+      // A start that threw may still have created the child: the upstream
+      // `startLocal` materializes the agent before submitting, and its catch
+      // does not dispose an already-established activation. There is no
+      // activation handle here, so ask the subagent service to drain the
+      // reserved child id; on failure keep it owned so the guard fails closed.
+      try {
+        await ctx.subagents.drainChildren(agent, [childId])
+        releaseOwnership()
+      } catch (error) {
+        ctx.logger?.warn('better-choice: failed to drain a rejected side-ask child', error)
       }
-      // `dispose` is idempotent; awaiting it here releases the child id and the
-      // per-child guard even when the result resolved normally.
-      await Promise.resolve(activation?.dispose()).catch(() => {})
     }
-    // A start that threw may still have created the child: the upstream
-    // `startLocal` materializes the agent before submitting, and its catch does
-    // not dispose an already-established activation. Keep `childId` owned in
-    // that case so the execution-time guard fails closed instead of letting the
-    // untracked child run tools.
   }
 }
 
