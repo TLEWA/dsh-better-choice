@@ -5,7 +5,7 @@ All notable changes are documented here. This project follows
 
 [简体中文](CHANGELOG.md) · [English](CHANGELOG.en.md)
 
-## [Unreleased]
+## [1.1.0] - 2026-11-11
 
 - Adopt shared Codex PR review rules and repository-specific review guidance; preserve existing CI, human approval, and release behavior.
 
