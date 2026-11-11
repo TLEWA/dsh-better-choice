@@ -5,7 +5,7 @@ All notable changes are documented here. This project follows
 
 [简体中文](CHANGELOG.md) · [English](CHANGELOG.en.md)
 
-## [Unreleased]
+## [1.2.1] - 2026-11-12
 
 ### Compatibility
 
@@ -16,8 +16,10 @@ All notable changes are documented here. This project follows
 - `0.2.2-rc.2` no longer exposes `drainChildren`; when a start fails, the child id stays
   owned and the tool guard fails closed. `drainDescendants` is never used for one side ask,
   because it would stop the shared root's entire subtree.
-- The rc.2 host is not published yet (no `0.2.2-rc.2` package on npm), so this round covers
-  both signatures with contract tests; real-host regression follows its release.
+- The rc.2 host is not published yet (no `0.2.2-rc.2` package on npm). Both signatures are
+  covered by contract tests; plugin loading and `/bc-ask` registration were also confirmed on a
+  temporary web host built from source. The model-driven side-ask path still needs a real-host
+  regression after the official release.
 
 ## [1.2.0] - 2026-11-11
 

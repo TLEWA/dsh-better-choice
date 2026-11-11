@@ -5,7 +5,7 @@
 
 [简体中文](CHANGELOG.md) · [English](CHANGELOG.en.md)
 
-## [Unreleased]
+## [1.2.1] - 2026-11-12
 
 ### 兼容
 
@@ -14,8 +14,8 @@
   `resolveName` / `drainDescendants` 自动选择，不需要配置。
 - `0.2.2-rc.2` 起宿主不再提供 `drainChildren`；启动失败时保留 childId 并继续拦截工具
   （fail-closed），不使用会停掉共享根整棵子树的 `drainDescendants` 清理单个旁问。
-- rc.2 宿主尚未正式发布（npm 无 `0.2.2-rc.2` 包），本轮以契约单测覆盖两种签名；
-  真机回归待发布后补。
+- rc.2 宿主尚未正式发布（npm 无 `0.2.2-rc.2` 包），当前以契约单测覆盖两种签名，并已在
+  源码构建的临时 Web 宿主确认插件加载与 `/bc-ask` 命令注册；模型驱动的旁问路径待正式发布后补真机回归。
 
 ## [1.2.0] - 2026-11-11
 
