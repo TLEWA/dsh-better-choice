@@ -5,6 +5,18 @@
 
 [简体中文](CHANGELOG.md) · [English](CHANGELOG.en.md)
 
+## [Unreleased]
+
+### 兼容
+
+- 旁问的 fork 子代理激活同时支持 DSH `0.2.2-rc.2` 的扁平签名（`parent` / `agentOptions` /
+  `prompt` 位于顶层）与 `0.2.2-rc.1` 及更早的 `request` 嵌套签名；按宿主是否提供
+  `resolveName` / `drainDescendants` 自动选择，不需要配置。
+- `0.2.2-rc.2` 起宿主不再提供 `drainChildren`；启动失败时保留 childId 并继续拦截工具
+  （fail-closed），不使用会停掉共享根整棵子树的 `drainDescendants` 清理单个旁问。
+- rc.2 宿主尚未正式发布（npm 无 `0.2.2-rc.2` 包），本轮以契约单测覆盖两种签名；
+  真机回归待发布后补。
+
 ## [1.2.0] - 2026-11-11
 
 ### 修复

@@ -88,18 +88,26 @@ interface Activation {
   dispose(): Promise<void>
 }
 
-interface StartActivationSpec {
+interface ActivationRequest {
+  parent: AgentLike
+  agentOptions?: { maxTokens?: number }
+  prompt: readonly { type: 'text'; text: string }[]
+}
+
+interface ActivationShared {
   provider: string
   label: string
   childId: string
-  request: {
-    parent: AgentLike
-    agentOptions?: { maxTokens?: number }
-    prompt: readonly { type: 'text'; text: string }[]
-  }
   signal: AbortSignal
   delivery: 'caller'
 }
+
+/**
+ * DSH 0.2.2-rc.1 and earlier nest the request under `request`; 0.2.2-rc.2
+ * flattens parent/prompt/agentOptions onto the activation spec and adds an
+ * optional `name`. Keep both shapes so one build serves either host.
+ */
+type StartActivationSpec = ActivationShared & ({ request: ActivationRequest } | ActivationRequest)
 
 interface CommandInvocation {
   agent?: AgentLike
@@ -120,6 +128,10 @@ interface HostContext {
   subagents: {
     getProvider(name: string): SubagentProvider | undefined
     startActivation?(spec: StartActivationSpec): Promise<Activation>
+    /** 0.2.2-rc.2 named-subagent API; its presence identifies the flat spec. */
+    resolveName?: unknown
+    /** 0.2.2-rc.2 subtree drain API; never used to clean one child on a shared root. */
+    drainDescendants?: unknown
     /** Release reserved child ids whose start failed without an activation handle. */
     drainChildren?(parent: AgentLike, childIds: readonly string[]): Promise<void>
   }
@@ -134,6 +146,12 @@ interface HostContext {
   ) => () => void
   effect?: (setup: () => (() => void | Promise<void>)) => void
   logger?: { warn(...values: unknown[]): void }
+}
+
+/** True when the host speaks the 0.2.2-rc.2 flat activation spec. */
+function supportsFlatActivation(subagents: HostContext['subagents']): boolean {
+  return typeof subagents.resolveName === 'function'
+    || typeof subagents.drainDescendants === 'function'
 }
 
 /** Child ids that are currently owned by a side question; used by the guard. */
@@ -425,21 +443,29 @@ async function handleSideAsk(
     }
   }
   try {
-    activation = await ctx.subagents.startActivation({
+    // One trailing user message is the only new input. A completed parent turn
+    // is replayed by the fork provider; a pending tool-call turn is not part of
+    // the seed, so the card context travels in this prompt.
+    const prompt: ActivationRequest['prompt'] = [{ type: 'text', text: buildPrompt(payload) }]
+    const request: ActivationRequest = {
+      parent: agent,
+      agentOptions: { maxTokens },
+      prompt,
+    }
+    const shared: ActivationShared = {
       provider: 'fork',
       label: 'BC 旁问',
       childId,
-      request: {
-        parent: agent,
-        agentOptions: { maxTokens },
-        // One trailing user message is the only new input. A completed parent
-        // turn is replayed by the fork provider; a pending tool-call turn is
-        // not part of the seed, so the card context travels in this prompt.
-        prompt: [{ type: 'text', text: buildPrompt(payload) }],
-      },
       signal,
       delivery: 'caller',
-    })
+    }
+    // Do not pass name: rc.2 requires it to be unique among the parent's
+    // children, and concurrent side questions could collide. Auto agent-N is fine.
+    activation = await ctx.subagents.startActivation(
+      supportsFlatActivation(ctx.subagents)
+        ? { ...shared, ...request }
+        : { ...shared, request },
+    )
     started = true
     const result = await waitUnlessAborted(activation.result, signal, () => {
       // Stop the fork child when the caller gives up waiting.
@@ -472,10 +498,12 @@ async function handleSideAsk(
       await disposeChild()
       releaseOwnership()
     } else if (typeof ctx.subagents.drainChildren === 'function') {
-      // A start that threw may still have created the child: the upstream
+      // Only pre-rc.2 hosts expose drainChildren. rc.2 removed it and has no
+      // per-child cleanup API, so it keeps the id owned (fail-closed) below.
+      // A start that threw may still have created the child: the old
       // `startLocal` materializes the agent before submitting, and its catch
       // does not dispose an already-established activation. There is no
-      // activation handle here, so ask the subagent service to drain the
+      // activation handle here, so ask the old subagent service to drain the
       // reserved child id; on failure keep it owned so the guard fails closed.
       try {
         await ctx.subagents.drainChildren(agent, [childId])

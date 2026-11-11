@@ -83,7 +83,8 @@
 ## 安装
 
 要求 DSH 0.2.0-rc 族（`engines.dsh: >=0.2.0-rc.1 <0.3.0-0`，客户端内置包
-`^0.2.0-rc.1`），Node.js 20+；已在 DSH `0.2.2-rc.1` 上验证。
+`^0.2.0-rc.1`），Node.js 20+；已在 DSH `0.2.2-rc.1` 上验证，并按 `0.2.2-rc.2` 的
+子代理激活契约完成适配（契约单测覆盖；rc.2 宿主尚未正式发布，真机验证待发布后补）。
 
 ### 从 npm 安装（推荐）
 
@@ -225,8 +226,14 @@ npm pack
 
 按 DSH 客户端 `0.2.2-rc.1` 的 composer 槽与 `PendingQuestion` 契约做类型校验，
 manifest 的 `engines.dsh` 声明为 `>=0.2.0-rc.1 <0.3.0-0`，peer 依赖声明为
-`^0.2.0-rc.1`；已在 `0.2.2-rc.1` Web 宿主真机验证。DSH 升级若改动
-问题卡内部结构：
+`^0.2.0-rc.1`；已在 `0.2.2-rc.1` Web 宿主真机验证。
+
+旁问的 fork 子代理激活同时兼容两种宿主签名：`0.2.2-rc.1` 及更早使用嵌套的
+`request: { parent, agentOptions, prompt }`，`0.2.2-rc.2` 改为把 `parent` / `agentOptions` /
+`prompt` 放在顶层。插件按宿主是否提供 `resolveName` / `drainDescendants` 自动选择，不需要配置；
+rc.2 已用契约单测覆盖，rc.2 宿主正式发布前未做真机验证。
+
+DSH 升级若改动问题卡内部结构：
 
 - 识别失败时增强卡片不接管，官方问题卡仍可用；
 - 旁问依赖宿主命令、`ctx.subagents.startActivation` 与 fork provider；接口变化时旁问会报错，
