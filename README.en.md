@@ -92,7 +92,9 @@ Then choose.
 ## Installation
 
 Requires the DSH 0.2.0-rc family (`engines.dsh: >=0.2.0-rc.1 <0.3.0-0`, client
-packages `^0.2.0-rc.1`) and Node.js 20+; verified on DSH `0.2.2-rc.1`.
+packages `^0.2.0-rc.1`) and Node.js 20+. Verified on DSH `0.2.2-rc.1` and adapted to the
+`0.2.2-rc.2` subagent activation contract (covered by contract tests; the rc.2 host is not
+published yet, so real-host verification follows its release).
 
 ### From npm (recommended)
 
@@ -246,7 +248,15 @@ the `window.__ModuleLoader__` envelope; the host artifact is unbundled ESM.
 Type-checked against the DSH `0.2.2-rc.1` composer slot and `PendingQuestion` contract;
 the manifest declares `engines.dsh: >=0.2.0-rc.1 <0.3.0-0`, peer dependencies are
 declared as `^0.2.0-rc.1`, and it is verified on a real
-`0.2.2-rc.1` web host. If a DSH upgrade changes the internal card structure:
+`0.2.2-rc.1` web host.
+
+The side-ask fork activation supports both host signatures: `0.2.2-rc.1` and earlier nest
+`request: { parent, agentOptions, prompt }`, while `0.2.2-rc.2` moves `parent` /
+`agentOptions` / `prompt` to the top level. The plugin picks the shape from the host's
+`resolveName` / `drainDescendants` capabilities, with no configuration. rc.2 is covered by
+contract tests; real-host verification waits for its release.
+
+If a DSH upgrade changes the internal card structure:
 
 - the enhanced card declines to claim it and the official card still works;
 - the side ask depends on the host command, `ctx.subagents.startActivation`, and the fork

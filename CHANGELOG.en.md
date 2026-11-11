@@ -5,6 +5,20 @@ All notable changes are documented here. This project follows
 
 [简体中文](CHANGELOG.md) · [English](CHANGELOG.en.md)
 
+## [Unreleased]
+
+### Compatibility
+
+- The side-ask fork activation now supports both the flat DSH `0.2.2-rc.2` signature
+  (`parent` / `agentOptions` / `prompt` at the top level) and the nested `request`
+  signature used by `0.2.2-rc.1` and earlier. The shape is selected from the host's
+  `resolveName` / `drainDescendants` capabilities, with no configuration.
+- `0.2.2-rc.2` no longer exposes `drainChildren`; when a start fails, the child id stays
+  owned and the tool guard fails closed. `drainDescendants` is never used for one side ask,
+  because it would stop the shared root's entire subtree.
+- The rc.2 host is not published yet (no `0.2.2-rc.2` package on npm), so this round covers
+  both signatures with contract tests; real-host regression follows its release.
+
 ## [1.2.0] - 2026-11-11
 
 ### Fixed

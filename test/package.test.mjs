@@ -37,7 +37,7 @@ function makeAgent(overrides = {}) {
   return { agent, derived: () => derived }
 }
 
-function makeHarness(result = { stopReason: 'completed', output: [{ type: 'text', text: 'Use option B.' }] }, { defer = false, failStart = false, drain = false } = {}) {
+function makeHarness(result = { stopReason: 'completed', output: [{ type: 'text', text: 'Use option B.' }] }, { defer = false, failStart = false, drain = false, flat = false } = {}) {
   const activations = []
   const disposals = []
   const drainCalls = []
@@ -80,6 +80,16 @@ function makeHarness(result = { stopReason: 'completed', output: [{ type: 'text'
           },
         }
       },
+      ...(flat
+        ? {
+            // 0.2.2-rc.2 exposes the named-subagent API; no drainChildren.
+            resolveName() {},
+            // Must never be used for a single failed child on a shared root.
+            async drainDescendants(...args) {
+              drainCalls.push({ parent: undefined, childIds: [], descendants: args })
+            },
+          }
+        : {}),
       ...(drain
         ? {
             async drainChildren(parent, childIds) {
@@ -257,6 +267,37 @@ test('bc-ask starts one fork child with only a trailing user prompt', async () =
   assert.equal(harness.guardFn({ agent }), undefined)
 })
 
+test('bc-ask uses the flat activation spec on 0.2.2-rc.2 hosts', async () => {
+  const host = await loadHost()
+  const harness = makeHarness(undefined, { flat: true })
+  const { agent, derived } = makeAgent()
+  host.apply(harness.ctx)
+
+  const response = await harness.registered.handler({
+    agent,
+    rawInput: JSON.stringify({ question: 'which option?' }),
+    signal: new AbortController().signal,
+  })
+
+  assert.equal(response.kind, 'success')
+  assert.equal(response.text, 'Use option B.')
+  const spec = harness.activations[0]
+  assert.equal(spec.provider, 'fork')
+  assert.equal(spec.delivery, 'caller')
+  assert.equal(spec.parent, agent)
+  assert.deepEqual(spec.agentOptions, { maxTokens: 32_000 })
+  assert.equal(spec.prompt.length, 1)
+  assert.equal(spec.prompt[0].type, 'text')
+  assert.match(spec.prompt[0].text, /【旁问模式】/)
+  // rc.2 flattens parent/prompt/agentOptions and has no nested request.
+  assert.equal('request' in spec, false)
+  // Omit name: concurrent side questions must not collide on a child name.
+  assert.equal('name' in spec, false)
+  assert.equal(derived(), 0, 'the host must not project the parent session itself')
+  assert.deepEqual(harness.disposals, [spec.childId])
+  assert.equal(harness.guardFn({ agent: { id: spec.childId } }), undefined)
+})
+
 test('bc-ask numbers consecutive side-question turns', async () => {
   const host = await loadHost()
   const harness = makeHarness()
@@ -347,6 +388,28 @@ test('bc-ask keeps a started-but-failed child guarded', async () => {
   // guard must stay armed for it even though no activation came back.
   assert.match(harness.guardFn({ agent: { id: childId } }), /禁止执行任何工具/)
   assert.deepEqual(harness.disposals, [])
+})
+
+test('bc-ask keeps an rc.2 start failure guarded without draining the root', async () => {
+  const host = await loadHost()
+  const harness = makeHarness(undefined, { failStart: true, flat: true })
+  const { agent } = makeAgent()
+  host.apply(harness.ctx)
+
+  const response = await harness.registered.handler({
+    agent,
+    rawInput: JSON.stringify({ question: 'why?' }),
+    signal: new AbortController().signal,
+  })
+
+  assert.equal(response.kind, 'error')
+  assert.match(response.text, /旁问失败/)
+  const childId = harness.activations[0].childId
+  // rc.2 has no per-child drain. drainDescendants would stop the shared root's
+  // whole subtree, so the id must stay owned and the guard must fail closed.
+  assert.match(harness.guardFn({ agent: { id: childId } }), /禁止执行任何工具/)
+  assert.deepEqual(harness.disposals, [])
+  assert.deepEqual(harness.drainCalls, [])
 })
 
 test('bc-ask reports incomplete, aborted, and empty child results', async () => {
