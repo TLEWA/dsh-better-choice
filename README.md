@@ -24,7 +24,7 @@
 
 | 能力 | 行为 |
 | --- | --- |
-| 右键展开补充框 | 右键选项即选中该项（若尚未选中）并展开输入框；切到下一题时自动收起，文字保留 |
+| 右键展开补充框 | 右键选项即展开输入框，并在不覆盖底部自定义答案时选中该项；切到下一题时自动收起，文字保留 |
 | 每个选项独立记忆 | 单选、多选都按选项分别保存补充内容，切换选项不会串稿 |
 | 提交不改变协议 | `selected` 仍是原始选项文字；补充说明合并进 `custom`，无补充时与官方请求完全一致 |
 | 未选也可备注 | 多选时给未勾选的选项写了备注，提交文本会标注 `(未选)`，模型能分清语气 |
@@ -36,7 +36,8 @@
 
 ### 右键补充
 
-单选时右键某个选项，会先选中它，再在选项下方展开输入框。填写的内容不会替换选项，
+单选时右键某个选项，会先选中它，再在选项下方展开输入框；如果底部已经写了自定义答案，
+则以自定义答案为准，不再改变选中，备注按 `(未选)` 提交。填写的内容不会替换选项，
 而是作为该选项的附注：
 
 ```json
@@ -248,7 +249,7 @@ manifest 的 `engines.dsh` 声明为 `>=0.2.0-rc.1 <0.3.0-0`，peer 依赖声明
 - **[dsh-sidebar-row-menu](https://github.com/TLEWA/dsh-sidebar-row-menu)** —— 侧栏行的右键菜单：工作区菜单与原生会话菜单扩展，带「打开方式」二级菜单、置顶应用、逐项菜单位置与已归档会话清理。
 - **[dsh-sidebar-organizer](https://github.com/TLEWA/dsh-sidebar-organizer)** —— 七区域布局整理器：侧栏、侧栏底部、对话标签、输入框、会话头部、右侧栏、设置导航都能长按拖拽排序，面板可以收进「更多」再拖回来。
 - **[dsh-if](https://github.com/TLEWA/dsh-if)** —— `/if` 命令：让模型结合上文判断条件，成立才把下面的指令作为用户消息发出。
-- **[dsh-utf8-output](https://github.com/TLEWA/dsh-utf8-output)** —— 修复 Windows 下 DSH 子进程 GBK/CP936/CP932 输出乱码。
+- **[dsh-utf8-output](https://github.com/TLEWA/dsh-utf8-output)** —— 修复 Windows 下 DSH 子进程 GBK/CP936/GB18030 输出乱码。
 - **[dsh-opencode-go-router](https://github.com/TLEWA/dsh-opencode-go-router)** —— 上下文折叠或系统提示被重写后轮换 OpenCode Go 路由，少丢一点提示缓存。
 - **[dsh-fastload](https://github.com/TLEWA/dsh-fastload)** —— 长会话首屏历史瘦身：缩小首次打开时的历史页，同时保留用户实际看到的尾部内容。
 - **[dsh-ptc-noargs](https://github.com/TLEWA/dsh-ptc-noargs)** —— 修复 PTC `run_code` 中无参工具调用被拒绝的问题：把省略或 `undefined` 的首参归一化为 `{}`。

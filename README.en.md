@@ -26,7 +26,7 @@ official composer.
 
 | Capability | Behavior |
 | --- | --- |
-| Right-click note | Right-clicking selects the option if needed and opens its note field; moving to the next question folds it and keeps the text |
+| Right-click note | Right-clicking opens the note field and selects the option unless the bottom custom answer already wins; moving to the next question folds it and keeps the text |
 | Per-option memory | Single- and multi-select keep one independent note per option; switching options never mixes drafts |
 | Protocol unchanged | `selected` still carries the original labels; notes are merged into `custom`; no notes means the official payload, byte for byte |
 | Notes on unselected options | In multi-select, a note on an unchecked option is marked `(unselected)` so the model can tell |
@@ -38,8 +38,10 @@ official composer.
 
 ### Right-click notes
 
-In single-select, right-clicking an option selects it and opens a note field below it.
-The note does not replace the option; it is attached to it:
+In single-select, right-clicking an option selects it and opens a note field below it. If a
+bottom custom answer is already typed, that answer wins and the selection stays empty, so
+the note is submitted as `(unselected)`. The note does not replace the option; it is attached
+to it:
 
 ```json
 {
@@ -271,7 +273,7 @@ Question cards are only one corner of DSH. These are the other plugins I maintai
 - **[dsh-sidebar-row-menu](https://github.com/TLEWA/dsh-sidebar-row-menu)** — right-click menus for sidebar rows: workspace menu and native session menu extensions, with open-with submenus, pinned apps, per-item menu placement, and archived-session cleanup.
 - **[dsh-sidebar-organizer](https://github.com/TLEWA/dsh-sidebar-organizer)** — a layout organizer for seven regions: sidebar, sidebar footer, conversation tabs, composer, session header, right panel, and settings navigation all support long-press drag to reorder, and panels can be tucked into "More".
 - **[dsh-if](https://github.com/TLEWA/dsh-if)** — the `/if` command: let the model judge a condition from prior context, then send the instruction below it as a user message only when it holds.
-- **[dsh-utf8-output](https://github.com/TLEWA/dsh-utf8-output)** — fixes GBK/CP936/CP932 mojibake from DSH subprocess output on Windows.
+- **[dsh-utf8-output](https://github.com/TLEWA/dsh-utf8-output)** — fixes GBK/CP936/GB18030 mojibake from DSH subprocess output on Windows.
 - **[dsh-opencode-go-router](https://github.com/TLEWA/dsh-opencode-go-router)** — rotates OpenCode Go routing after a context fold or a system-prompt rewrite, so less of the prompt cache is lost.
 - **[dsh-fastload](https://github.com/TLEWA/dsh-fastload)** — trims the first history page of long sessions while preserving the tail the user actually sees.
 - **[dsh-ptc-noargs](https://github.com/TLEWA/dsh-ptc-noargs)** — fixes rejected argument-less tool calls in PTC `run_code` by normalizing an omitted or `undefined` first argument to `{}`.
