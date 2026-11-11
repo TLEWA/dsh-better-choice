@@ -60,6 +60,41 @@ export function noteOf(notes: Record<string, string>, label: string): string {
 }
 
 /**
+ * Whether a draft's bottom free-text answer replaces the option selection.
+ * This is the official single-select rule: custom text is the answer, so the
+ * selection is not submitted. Multi-select keeps both.
+ * @param item - the question being answered.
+ * @param custom - the raw bottom free-text answer.
+ * @returns true when the selection must be dropped.
+ */
+function customReplacesSelection(item: QuestionNoteItem, custom: string): boolean {
+  return item.multiSelect !== true && custom.trim() !== ''
+}
+
+/**
+ * Selection implied by right-clicking an option to write its note. Single
+ * select follows the same priority as the submission: a typed bottom answer
+ * wins, so the option is not re-selected and the note travels as `(未选)`;
+ * with no bottom answer the option becomes the selection. Multi-select notes
+ * coexist with both the selection and the bottom answer, so they only add the
+ * option. Sharing this rule with `mergeAnswer` keeps the visible checkmark and
+ * the submitted selection from diverging.
+ * @param draft - the question's current draft.
+ * @param label - the right-clicked option label.
+ * @param item - the question the draft answers.
+ * @returns the selection the right-click should produce.
+ */
+export function noteSelectionFor(
+  draft: QuestionNoteDraftAnswer,
+  label: string,
+  item: QuestionNoteItem,
+): string[] {
+  if (customReplacesSelection(item, draft.custom)) return []
+  if (item.multiSelect !== true) return [label]
+  return draft.selected.includes(label) ? draft.selected : [...draft.selected, label]
+}
+
+/**
  * Shape one draft into its wire answer. A note always carries its option label
  * so the model can attribute it — including a single-select note, where the
  * label is the only thing tying the text to its option once a bottom free-text
@@ -77,7 +112,7 @@ export function mergeAnswer(
   if (value === undefined || value.skipped) return { id: item.id, selected: [] }
   const custom = value.custom.trim()
   // Official semantics: a single-select custom answer replaces the selection.
-  const keepSelection = item.multiSelect === true || custom === ''
+  const keepSelection = !customReplacesSelection(item, value.custom)
   const parts: string[] = []
   const push = (label: string, note: string, selected: boolean): void => {
     if (note === '') return

@@ -24,7 +24,7 @@ async function loadAnswer() {
   return import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`)
 }
 
-const { hasAnswer, mergeAnswer, mergeAnswers, recommendedOptions } = await loadAnswer()
+const { hasAnswer, mergeAnswer, mergeAnswers, noteSelectionFor, recommendedOptions } = await loadAnswer()
 
 const single = { id: 'q1', question: 'Pick one', options: [{ label: 'A' }, { label: 'B' }] }
 const multi = { id: 'q2', question: 'Pick many', multiSelect: true, options: [{ label: 'A' }, { label: 'B' }] }
@@ -106,6 +106,31 @@ test('option labels that collide with Object.prototype keys stay plain notes', (
     mergeAnswer(draft({ notes: JSON.parse('{"__proto__": "proto note"}') }), proto).custom,
     '(未选) __proto__: proto note',
   )
+})
+
+test('a right-click keeps the single-select custom answer instead of re-selecting', () => {
+  // The bottom custom answer replaces a single-select selection (official
+  // semantics), and mergeAnswer drops the selection on the wire. Right-click
+  // must not show a checkmark the submission will not send.
+  const current = draft({ selected: [], custom: '自己来' })
+  assert.deepEqual(noteSelectionFor(current, 'B', single), [])
+  const answer = mergeAnswer(
+    draft({ selected: noteSelectionFor(current, 'B', single), notes: { B: '补充' }, custom: current.custom }),
+    single,
+  )
+  assert.deepEqual(answer, { id: 'q1', selected: [], custom: '(未选) B: 补充\n自己来' })
+})
+
+test('a right-click selects the option when the single-select custom answer is empty', () => {
+  assert.deepEqual(noteSelectionFor(draft(), 'B', single), ['B'])
+  assert.deepEqual(noteSelectionFor(draft({ selected: ['A'], custom: '   ' }), 'B', single), ['B'])
+})
+
+test('a right-click coexists with a multi-select custom answer', () => {
+  const current = draft({ selected: ['A'], custom: 'and this' })
+  assert.deepEqual(noteSelectionFor(current, 'B', multi), ['A', 'B'])
+  // Already selected: the selection order is untouched.
+  assert.deepEqual(noteSelectionFor(draft({ selected: ['B', 'A'] }), 'B', multi), ['B', 'A'])
 })
 
 test('recommended markers preselect every marked option only for multi-select', () => {

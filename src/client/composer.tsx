@@ -7,7 +7,7 @@ import {
   IconChevronRightOutlineRegular, IconChevronUpOutlineRegular, IconCloseOutlineRegular,
   IconEditOutlineRegular, MarkdownText,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import { hasAnswer, mergeAnswers, noteOf, parseRecommendedLabel, recommendedOptions } from './answer.ts'
+import { hasAnswer, mergeAnswers, noteOf, noteSelectionFor, parseRecommendedLabel, recommendedOptions } from './answer.ts'
 import type { QuestionNoteCarrier, QuestionNoteItem } from './carrier.ts'
 import type {
   QuestionNoteDraftAnswer, QuestionNoteDraftBakedActions, QuestionNoteDraftState,
@@ -20,8 +20,9 @@ import { cx } from './styles.ts'
  * Enhanced question composer. It is a fork of the official generic question
  * flow with two additions:
  *
- * 1. Right-clicking an option selects it and opens a note input directly under
- *    that option. Left-click keeps its original meaning (select only).
+ * 1. Right-clicking an option opens a note input directly under that option,
+ *    selecting it unless a single-select bottom answer already wins. Left-click
+ *    keeps its original meaning (select only).
  * 2. A side-question box lets the user invoke the host's `bc-ask` command while
  *    the question is pending, so they can ask the model before answering.
  */
@@ -519,18 +520,18 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
   }
 
   /**
-   * Right-click action: ensure the option is selected, then open its note.
-   * A note belongs to a selected option, so this keeps the submitted answer
-   * and the note consistent without changing left-click semantics.
+   * Right-click action: open the option's note and select it when the
+   * submission will actually carry a selection. A single-select bottom answer
+   * wins over the selection (official semantics), so re-selecting here would
+   * show a checkmark the wire drops; `noteSelectionFor` applies the same rule
+   * as `mergeAnswers`, keeping the card and the payload in sync.
    * @param label - the right-clicked option label.
    */
   const openNote = (label: string): void => {
     if (locked) return
     let nextSelected: string[] = []
     updateDraft((current) => {
-      const selected = question.multiSelect === true
-        ? (current.selected.includes(label) ? current.selected : [...current.selected, label])
-        : [label]
+      const selected = noteSelectionFor(current, label, question)
       nextSelected = selected
       return { ...current, selected, skipped: false }
     })
