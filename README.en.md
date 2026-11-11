@@ -109,13 +109,13 @@ packages `^0.2.0-rc.1`) and Node.js 20+; verified on DSH `0.2.2-rc.1`.
 Pin a version:
 
 ```text
-dsh-better-choice@1.0.1
+dsh-better-choice@1.2.0
 ```
 
 Equivalent CLI:
 
 ```powershell
-dsh plugin --profile desktop add dsh-better-choice@1.0.1
+dsh plugin --profile desktop add dsh-better-choice@1.2.0
 ```
 
 ### From GitHub
@@ -129,7 +129,7 @@ https://github.com/TLEWA/dsh-better-choice
 Pin a tag:
 
 ```text
-https://github.com/TLEWA/dsh-better-choice#v1.0.3
+https://github.com/TLEWA/dsh-better-choice#v1.2.0
 ```
 
 Or install the release asset directly:
@@ -141,7 +141,7 @@ https://github.com/TLEWA/dsh-better-choice/releases/latest/download/dsh-better-c
 Equivalent CLI:
 
 ```powershell
-dsh plugin --profile desktop add github:TLEWA/dsh-better-choice#v1.0.3
+dsh plugin --profile desktop add github:TLEWA/dsh-better-choice#v1.2.0
 ```
 
 ### From source
