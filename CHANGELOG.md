@@ -5,7 +5,7 @@
 
 [简体中文](CHANGELOG.md) · [English](CHANGELOG.en.md)
 
-## [Unreleased]
+## [1.2.2] - 2026-11-12
 
 ### 修复
 

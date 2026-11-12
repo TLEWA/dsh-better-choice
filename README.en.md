@@ -120,13 +120,13 @@ published yet, so real-host verification follows its release).
 Pin a version:
 
 ```text
-dsh-better-choice@1.2.1
+dsh-better-choice@1.2.2
 ```
 
 Equivalent CLI:
 
 ```powershell
-dsh plugin --profile desktop add dsh-better-choice@1.2.1
+dsh plugin --profile desktop add dsh-better-choice@1.2.2
 ```
 
 ### From GitHub
@@ -140,7 +140,7 @@ https://github.com/TLEWA/dsh-better-choice
 Pin a tag:
 
 ```text
-https://github.com/TLEWA/dsh-better-choice#v1.2.1
+https://github.com/TLEWA/dsh-better-choice#v1.2.2
 ```
 
 Or install the release asset directly:
@@ -152,7 +152,7 @@ https://github.com/TLEWA/dsh-better-choice/releases/latest/download/dsh-better-c
 Equivalent CLI:
 
 ```powershell
-dsh plugin --profile desktop add github:TLEWA/dsh-better-choice#v1.2.1
+dsh plugin --profile desktop add github:TLEWA/dsh-better-choice#v1.2.2
 ```
 
 ### From source
