@@ -107,13 +107,13 @@
 固定版本：
 
 ```text
-dsh-better-choice@1.2.1
+dsh-better-choice@1.2.2
 ```
 
 命令行等价写法：
 
 ```powershell
-dsh plugin --profile desktop add dsh-better-choice@1.2.1
+dsh plugin --profile desktop add dsh-better-choice@1.2.2
 ```
 
 ### 从 GitHub 安装
@@ -127,7 +127,7 @@ https://github.com/TLEWA/dsh-better-choice
 固定到标签：
 
 ```text
-https://github.com/TLEWA/dsh-better-choice#v1.2.1
+https://github.com/TLEWA/dsh-better-choice#v1.2.2
 ```
 
 或直接安装 Release 附件：
@@ -139,7 +139,7 @@ https://github.com/TLEWA/dsh-better-choice/releases/latest/download/dsh-better-c
 命令行等价写法：
 
 ```powershell
-dsh plugin --profile desktop add github:TLEWA/dsh-better-choice#v1.2.1
+dsh plugin --profile desktop add github:TLEWA/dsh-better-choice#v1.2.2
 ```
 
 ### 从源码安装
