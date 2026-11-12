@@ -41,9 +41,11 @@ official composer.
 In single-select, right-clicking an option selects it and opens a note field below it. If a
 bottom custom answer is already typed, that answer wins and the selection stays empty, so
 the note is submitted as `(unselected)`. The note does not replace the option; it is attached
-to it. A note under a submitted selection is bare text, because `selected` already names the
-option; only an unselected option, or one whose selection a bottom custom answer replaced,
-is marked `(unselected) Option:`.
+to it. A note under a single submitted selection is bare text, because `selected` already
+names the option. When a multi-select submission has more than one selected option, a
+selected note is written as `Option N: note`, where N is the option's 1-based position in
+the question; that keeps attribution without repeating the label. Only an unselected option,
+or one whose selection a bottom custom answer replaced, is marked `(unselected) Option:`.
 
 ```json
 {
@@ -58,12 +60,14 @@ is marked `(unselected) Option:`.
 ```
 
 In multi-select, each option gets its own note and each note becomes one line, in `selected`
-order; a note on an unchecked option carries the `(unselected)` prefix:
+order. When more than one option is selected, each selected note carries an `Option N:`
+prefix, where N is the option's position in the question; a note on an unchecked option
+carries the `(unselected)` prefix:
 
 ```json
 {
   "selected": ["Option A", "Option C"],
-  "custom": "keep the legacy endpoint\nremove it next iteration"
+  "custom": "Option 1: keep the legacy endpoint\nOption 3: remove it next iteration"
 }
 ```
 

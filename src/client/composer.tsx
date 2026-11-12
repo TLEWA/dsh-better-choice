@@ -558,8 +558,9 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
       setError({ key: 'error.unavailable' })
       return
     }
-    // The wire shape lives in `mergeAnswers`: a selected note rides as bare
-    // text (the selection names the option), a note outside the selection is
+    // The wire shape lives in `mergeAnswers`: a note under one submitted
+    // selection rides as bare text, a note under several multi-select
+    // selections names its question position, a note outside the selection is
     // marked `(未选) label:`, and a single-select custom answer drops the
     // selection (official semantics).
     const answer = mergeAnswers(values, questions)

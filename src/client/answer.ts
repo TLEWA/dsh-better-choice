@@ -95,13 +95,28 @@ export function noteSelectionFor(
 }
 
 /**
- * Shape one draft into its wire answer. A note under a submitted selection is
- * sent as bare text: `selected` already names the option, and repeating the
- * label inside `custom` makes the host's reply bubble render the option twice
- * ("B, B: note"). A note whose option is not part of the submitted selection is
- * marked `(未选) label:`, which keeps attribution when a single-select custom
- * answer drops the selection. A single-select custom answer drops the selection
- * exactly like the official composer does.
+ * Position of an option in the question, 1-based. The position is a stable way
+ * to name an option inside `custom` without repeating its label.
+ * @param item - the question that owns the option.
+ * @param label - the option label to locate.
+ * @returns the 1-based position, or 0 when the label is not in the option list.
+ */
+function optionPosition(item: QuestionNoteItem, label: string): number {
+  const index = (item.options ?? []).findIndex(option => option.label === label)
+  return index < 0 ? 0 : index + 1
+}
+
+/**
+ * Shape one draft into its wire answer. A note under a single submitted
+ * selection is sent as bare text: `selected` already names the option, and
+ * repeating the label inside `custom` makes the host's reply bubble render the
+ * option twice ("B, B: note"). When a multi-select submission carries more than
+ * one selected option, a bare note could belong to any of them, so it is marked
+ * with its question position ("选项 2: note"): that keeps attribution without
+ * repeating the option label. A note whose option is not part of the submitted
+ * selection is marked `(未选) label:`, which keeps attribution when a
+ * single-select custom answer drops the selection. A single-select custom answer
+ * drops the selection exactly like the official composer does.
  * @param value - the question's draft, if navigation restored one.
  * @param item - the question the draft answers.
  * @returns the answer item for this question.
@@ -117,9 +132,16 @@ export function mergeAnswer(
   const parts: string[] = []
   const push = (label: string, note: string, selected: boolean): void => {
     if (note === '') return
-    // A submitted selection already carries the label; only a note outside the
-    // selection needs a label to stay attributable.
-    const prefix = selected || label === '' ? '' : `${label}: `
+    let prefix = ''
+    if (!selected) {
+      // A note outside the selection cannot rely on `selected` for attribution.
+      prefix = label === '' ? '' : `${label}: `
+    } else if (item.multiSelect === true && value.selected.length > 1) {
+      // Several selected options: name the question position instead of
+      // repeating a label the host bubble already renders from `selected`.
+      const position = optionPosition(item, label)
+      prefix = position > 0 ? `选项 ${position}: ` : label === '' ? '' : `${label}: `
+    }
     parts.push(`${selected ? '' : '(未选) '}${prefix}${note}`)
   }
   for (const label of value.selected) push(label, noteOf(value.notes, label).trim(), keepSelection)

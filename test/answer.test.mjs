@@ -68,13 +68,24 @@ test('a multi-select note keeps the selection and labels deselected notes', () =
   assert.deepEqual(answer, {
     id: 'q2',
     selected: ['B', 'A'],
-    custom: 'first\n(未选) C: third\nand this',
+    custom: '选项 1: first\n(未选) C: third\nand this',
   })
 })
 
 test('notes follow the selection order, then the remaining options', () => {
   const answer = mergeAnswer(draft({ selected: ['B', 'A'], notes: { A: 'x', B: 'y' } }), multi)
-  assert.equal(answer.custom, 'y\nx')
+  assert.equal(answer.custom, '选项 2: y\n选项 1: x')
+})
+
+test('multi-select notes name their option position instead of repeating the label', () => {
+  const onA = mergeAnswer(draft({ selected: ['A', 'B'], notes: { A: '延后一周' } }), multi)
+  const onB = mergeAnswer(draft({ selected: ['A', 'B'], notes: { B: '延后一周' } }), multi)
+  assert.equal(onA.custom, '选项 1: 延后一周')
+  assert.equal(onB.custom, '选项 2: 延后一周')
+  // Different options must not collapse into the same custom text.
+  assert.notEqual(onA.custom, onB.custom)
+  const bubble = [...onA.selected, ...(onA.custom ? [onA.custom] : [])].join(', ')
+  assert.equal(bubble, 'A, B, 选项 1: 延后一周')
 })
 
 test('a skipped draft answers with nothing selected and no custom text', () => {

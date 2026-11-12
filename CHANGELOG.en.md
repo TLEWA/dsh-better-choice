@@ -12,9 +12,12 @@ All notable changes are documented here. This project follows
 - A note on an already selected option no longer repeats the option label in `custom`.
   The host reply bubble used to render `selected: ["Option B"]` plus
   `custom: "Option B: roll out to 5%"` as `Option B, Option B: roll out to 5%`, as if the
-  content appeared twice. Notes on unselected options, and notes whose selection a bottom
-  custom answer replaced, still carry the `(unselected) Option:` marker; notes for several
-  selected options follow `selected` order.
+  content appeared twice. A single selected note is now bare text; when a multi-select
+  submission has more than one selected option, each selected note is written as
+  `Option N: note` (N is the option's position in the question), which keeps attribution
+  without repeating the label. Notes on unselected options, and notes whose selection a
+  bottom custom answer replaced, still carry the `(unselected) Option:` marker; notes for
+  several selected options follow `selected` order.
 
 ## [1.2.1] - 2026-11-12
 
