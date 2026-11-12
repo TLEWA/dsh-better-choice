@@ -558,9 +558,10 @@ function QuestionNoteFlow({ pending, t, useStore, actions, sessionId, session }:
       setError({ key: 'error.unavailable' })
       return
     }
-    // The wire shape lives in `mergeAnswers`: every note keeps its option label,
-    // a note under a deselected option is marked `(未选)`, and a single-select
-    // custom answer drops the selection (official semantics).
+    // The wire shape lives in `mergeAnswers`: a selected note rides as bare
+    // text (the selection names the option), a note outside the selection is
+    // marked `(未选) label:`, and a single-select custom answer drops the
+    // selection (official semantics).
     const answer = mergeAnswers(values, questions)
     setBusy('answer')
     setError(null)

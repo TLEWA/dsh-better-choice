@@ -41,9 +41,18 @@ test('hasAnswer accepts a selection, custom text, or a note alone', () => {
   assert.equal(hasAnswer(draft({ notes: { A: '   ' } })), false)
 })
 
-test('a single-select note carries its option label', () => {
+test('a selected note travels as bare text without repeating its label', () => {
   const answer = mergeAnswer(draft({ selected: ['B'], notes: { B: '先灰度 5%' } }), single)
-  assert.deepEqual(answer, { id: 'q1', selected: ['B'], custom: 'B: 先灰度 5%' })
+  assert.deepEqual(answer, { id: 'q1', selected: ['B'], custom: '先灰度 5%' })
+})
+
+test('the settled reply bubble shows a selected option once', () => {
+  // The host renders the settled answer as
+  // [...selected, ...(custom ? [custom] : [])].join(', ') in
+  // ui-user-questions.client.js; a labeled selected note rendered "B, B: note".
+  const answer = mergeAnswer(draft({ selected: ['B'], notes: { B: '先灰度 5%' } }), single)
+  const bubble = [...answer.selected, ...(answer.custom ? [answer.custom] : [])].join(', ')
+  assert.equal(bubble, 'B, 先灰度 5%')
 })
 
 test('a single-select custom answer drops the selection and marks the leftover note', () => {
@@ -59,13 +68,13 @@ test('a multi-select note keeps the selection and labels deselected notes', () =
   assert.deepEqual(answer, {
     id: 'q2',
     selected: ['B', 'A'],
-    custom: 'A: first\n(未选) C: third\nand this',
+    custom: 'first\n(未选) C: third\nand this',
   })
 })
 
 test('notes follow the selection order, then the remaining options', () => {
   const answer = mergeAnswer(draft({ selected: ['B', 'A'], notes: { A: 'x', B: 'y' } }), multi)
-  assert.equal(answer.custom, 'B: y\nA: x')
+  assert.equal(answer.custom, 'y\nx')
 })
 
 test('a skipped draft answers with nothing selected and no custom text', () => {
@@ -100,7 +109,7 @@ test('option labels that collide with Object.prototype keys stay plain notes', (
   })
   assert.equal(
     mergeAnswer(draft({ selected: ['constructor'], notes: JSON.parse('{"constructor": "own"}') }), proto).custom,
-    'constructor: own',
+    'own',
   )
   assert.equal(
     mergeAnswer(draft({ notes: JSON.parse('{"__proto__": "proto note"}') }), proto).custom,

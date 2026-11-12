@@ -95,12 +95,13 @@ export function noteSelectionFor(
 }
 
 /**
- * Shape one draft into its wire answer. A note always carries its option label
- * so the model can attribute it — including a single-select note, where the
- * label is the only thing tying the text to its option once a bottom free-text
- * answer replaces the selection. A note under an option that is not part of the
- * submitted selection is marked `(未选)`, and a single-select custom answer
- * drops the selection exactly like the official composer does.
+ * Shape one draft into its wire answer. A note under a submitted selection is
+ * sent as bare text: `selected` already names the option, and repeating the
+ * label inside `custom` makes the host's reply bubble render the option twice
+ * ("B, B: note"). A note whose option is not part of the submitted selection is
+ * marked `(未选) label:`, which keeps attribution when a single-select custom
+ * answer drops the selection. A single-select custom answer drops the selection
+ * exactly like the official composer does.
  * @param value - the question's draft, if navigation restored one.
  * @param item - the question the draft answers.
  * @returns the answer item for this question.
@@ -116,7 +117,9 @@ export function mergeAnswer(
   const parts: string[] = []
   const push = (label: string, note: string, selected: boolean): void => {
     if (note === '') return
-    const prefix = label === '' ? '' : `${label}: `
+    // A submitted selection already carries the label; only a note outside the
+    // selection needs a label to stay attributable.
+    const prefix = selected || label === '' ? '' : `${label}: `
     parts.push(`${selected ? '' : '(未选) '}${prefix}${note}`)
   }
   for (const label of value.selected) push(label, noteOf(value.notes, label).trim(), keepSelection)

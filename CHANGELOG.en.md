@@ -5,6 +5,17 @@ All notable changes are documented here. This project follows
 
 [简体中文](CHANGELOG.md) · [English](CHANGELOG.en.md)
 
+## [Unreleased]
+
+### Fixed
+
+- A note on an already selected option no longer repeats the option label in `custom`.
+  The host reply bubble used to render `selected: ["Option B"]` plus
+  `custom: "Option B: roll out to 5%"` as `Option B, Option B: roll out to 5%`, as if the
+  content appeared twice. Notes on unselected options, and notes whose selection a bottom
+  custom answer replaced, still carry the `(unselected) Option:` marker; notes for several
+  selected options follow `selected` order.
+
 ## [1.2.1] - 2026-11-12
 
 ### Compatibility

@@ -41,7 +41,9 @@ official composer.
 In single-select, right-clicking an option selects it and opens a note field below it. If a
 bottom custom answer is already typed, that answer wins and the selection stays empty, so
 the note is submitted as `(unselected)`. The note does not replace the option; it is attached
-to it:
+to it. A note under a submitted selection is bare text, because `selected` already names the
+option; only an unselected option, or one whose selection a bottom custom answer replaced,
+is marked `(unselected) Option:`.
 
 ```json
 {
@@ -49,17 +51,20 @@ to it:
     {
       "id": "question-id",
       "selected": ["Option B"],
-      "custom": "Option B: roll out to 5% first, watch for an hour, then ramp"
+      "custom": "roll out to 5% first, watch for an hour, then ramp"
     }
   ]
 }
 ```
 
-In multi-select, each option gets its own note and each note becomes one line:
+In multi-select, each option gets its own note and each note becomes one line, in `selected`
+order; a note on an unchecked option carries the `(unselected)` prefix:
 
-```text
-Option A: keep the legacy endpoint
-Option C: remove it next iteration
+```json
+{
+  "selected": ["Option A", "Option C"],
+  "custom": "keep the legacy endpoint\nremove it next iteration"
+}
 ```
 
 With no notes, the request is identical to stock DSH and no `custom` is added.
